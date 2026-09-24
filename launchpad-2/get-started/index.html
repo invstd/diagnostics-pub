@@ -1,0 +1,699 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="Hi-Tech">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Get Started — Launchpad 2 - Diagnostics Platform</title>
+    <script>
+      (function() {
+        // Usability-test / demo links can carry presets as URL params (?theme=&language=&mode=),
+        // generated from Launchpad 2 Settings. Seed localStorage from them before first paint —
+        // same place base.njk already reads 'theme' from — then strip just those keys from the
+        // URL (preserving any other params, e.g. diagnostics-dashboard's vehicle data) so a
+        // bookmarked/reloaded link doesn't keep re-forcing presets after the tester's own
+        // in-session changes.
+        var params = new URLSearchParams(location.search);
+        var PRESET_PARAM_TO_STORAGE_KEY = { theme: 'theme', language: 'language', mode: 'launchpad-onboarding-mode', notif: 'launchpad-notifications-suppressed', vehicleType: 'automechanika-vehicle-type', role: 'automechanika-role' };
+        var paramsChanged = false;
+        Object.keys(PRESET_PARAM_TO_STORAGE_KEY).forEach(function (param) {
+          if (params.has(param)) {
+            var value = params.get(param);
+            // Automechanika's Settings Test Link now generates brand-only theme values ("WOW",
+            // not "WOW Dark" — light/dark is the sidebar footer's own toggle, not part of the
+            // preset link, see automechanika-theme-toggle.js) — resolve those against whichever
+            // mode was last selected on this device, defaulting to Dark if none has been yet.
+            // Full theme names ("Hi-Tech", "WOW Dark", …) pass through unchanged.
+            if (param === 'theme' && /^(Autocom|WOW|Wabco)$/.test(value)) {
+              value = value + ' ' + (localStorage.getItem('theme-mode') || 'Dark');
+            }
+            localStorage.setItem(PRESET_PARAM_TO_STORAGE_KEY[param], value);
+            params.delete(param);
+            paramsChanged = true;
+          }
+        });
+        // ?gate=<issued-at-ms> bypasses the prototype password gate (sessionStorage, same
+        // key/value the gate itself writes on a correct password) for 30 days from when the link
+        // was generated (Settings' Test Link) — runs before the next script block below reads it,
+        // so the gate never flashes. A plain boolean bypass (the old ?gate=1) would work forever
+        // no matter how many times the real password gets rotated, since it never checks the
+        // password at all — this at least puts a shelf life on a shared/bookmarked link. Not real
+        // security either way (a hand-edited timestamp bypasses this too), see prototype-gate.js.
+        var gateParam = params.get('gate');
+        if (gateParam) {
+          var gateIssuedAt = parseInt(gateParam, 10);
+          var GATE_LINK_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
+          if (!isNaN(gateIssuedAt) && (Date.now() - gateIssuedAt) < GATE_LINK_MAX_AGE_MS) {
+            try { sessionStorage.setItem('autocom-prototype-gate', '1'); } catch (e) {}
+          }
+          params.delete('gate');
+          paramsChanged = true;
+        }
+        if (paramsChanged) {
+          var newSearch = params.toString();
+          history.replaceState(null, '', location.pathname + (newSearch ? '?' + newSearch : '') + location.hash);
+        }
+        var saved = localStorage.getItem('theme');
+        document.documentElement.setAttribute('data-theme', saved || 'Hi-Tech');
+        // Role (Admin/User) — for sharing a link with trusted external users while hiding
+        // internal-only Settings sections (data-admin-only, see main.css). Client-side only, same
+        // "not real security" caveat as the password gate (prototype-gate.js) — fine for hiding
+        // UI from a trusted-audience demo link, not an access-control boundary. Defaults to Admin
+        // (today's full-access behavior) so any link without ?role= is unaffected.
+        document.documentElement.setAttribute('data-role', localStorage.getItem('automechanika-role') || 'Admin');
+      })();
+    </script>
+    <script>
+      (function () {
+        try {
+          if (sessionStorage.getItem('autocom-prototype-gate') === '1') {
+            document.documentElement.classList.add('prototype-gate-unlocked');
+          }
+        } catch (e) {}
+      })();
+    </script>
+    <link rel="stylesheet" href="/diagnostics-pub/assets/styles/main.css">
+
+</head>
+<body class="bg-base-100 text-base-content">
+
+    
+
+
+
+
+
+
+
+
+
+
+
+
+<div class="get-started-page relative min-h-screen w-full overflow-hidden flex flex-col items-center justify-center px-4 py-10">
+  
+<video class="absolute inset-0 w-full h-full object-cover" autoplay muted loop playsinline aria-hidden="true">
+  <source src="/diagnostics-pub/assets/videos/pouring-oil.mp4" type="video/mp4" />
+</video>
+<div class="setup-video-tint absolute inset-0" aria-hidden="true"></div>
+
+
+  <div class="relative z-10 w-full max-w-md mx-auto mb-6 shrink-0">
+    <span class="text-xl font-bold text-base-content">Apex</span>
+  </div>
+
+  <div class="relative z-10 w-full flex flex-col gap-6 max-w-md mx-auto">
+    
+<div class="content-header border-b border-base-300 pb-4 shrink-0 flex flex-col gap-4">
+  
+    <div class="flex flex-wrap items-center justify-between gap-3 w-full">
+      <h1 class="text-lg font-semibold text-base-content shrink-0">Get started</h1>
+      <span class="badge badge-soft badge-success badge-lg shrink-0">
+<span class="icon icon-watch size-[1em] inline-block shrink-0 [&_svg]:w-full [&_svg]:h-full [&_svg]:block" role="img" aria-hidden="true">
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M12 9.00002V12L13.5 13.5M16.51 17.35L16.16 21.18C16.1149 21.6787 15.8845 22.1423 15.5142 22.4792C15.1439 22.8162 14.6607 23.002 14.16 23H9.83C9.32933 23.002 8.84611 22.8162 8.4758 22.4792C8.1055 22.1423 7.87506 21.6787 7.83 21.18L7.48 17.35M7.49 6.65002L7.84 2.82002C7.88491 2.32309 8.11393 1.8609 8.48211 1.52417C8.8503 1.18744 9.33105 1.00049 9.83 1.00002H14.18C14.6807 0.997985 15.1639 1.18381 15.5342 1.52079C15.9045 1.85776 16.1349 2.32137 16.18 2.82002L16.53 6.65002M19 12C19 15.866 15.866 19 12 19C8.13401 19 5 15.866 5 12C5 8.13402 8.13401 5.00002 12 5.00002C15.866 5.00002 19 8.13402 19 12Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
+
+</span>
+About 6–8 minutes total</span>
+    </div>
+    
+
+
+<div class="steps-compact flex-1 w-full min-w-0 max-w-md">
+  <ul class="steps steps-horizontal w-full text-sm">
+    
+    
+    
+    
+    <li class="step step-primary" data-step-index="1" data-content="✓" data-current="true">Create account</li>
+    
+    
+    
+    
+    <li class="step step-neutral" data-step-index="2" data-content="2" data-current="false">Verify phone</li>
+    
+    
+    
+    
+    <li class="step step-neutral" data-step-index="3" data-content="3" data-current="false">Verify identity</li>
+    
+  </ul>
+</div>
+
+    
+</div>
+
+
+    <div class="card bg-base-100 border border-base-200 shadow p-6" id="get-started-card">
+
+    
+    <div class="get-started-step" data-step="1" id="step-account">
+
+      <div class="alert alert-warning mb-4 hidden" data-offline-banner role="alert">
+        
+<span class="icon icon-alert-triangle w-5 h-5 inline-block shrink-0 [&_svg]:w-full [&_svg]:h-full [&_svg]:block" role="img" aria-hidden="true">
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M11.9998 8.99996V13M11.9998 17H12.0098M10.2898 3.85996L1.81978 18C1.64514 18.3024 1.55274 18.6453 1.55177 18.9945C1.55079 19.3437 1.64127 19.6871 1.8142 19.9905C1.98714 20.2939 2.2365 20.5467 2.53748 20.7238C2.83847 20.9009 3.18058 20.9961 3.52978 21H20.4698C20.819 20.9961 21.1611 20.9009 21.4621 20.7238C21.7631 20.5467 22.0124 20.2939 22.1854 19.9905C22.3583 19.6871 22.4488 19.3437 22.4478 18.9945C22.4468 18.6453 22.3544 18.3024 22.1798 18L13.7098 3.85996C13.5315 3.56607 13.2805 3.32308 12.981 3.15444C12.6814 2.98581 12.3435 2.89722 11.9998 2.89722C11.656 2.89722 11.3181 2.98581 11.0186 3.15444C10.7191 3.32308 10.468 3.56607 10.2898 3.85996Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
+
+</span>
+
+        <span>No internet connection. Please reconnect to continue.</span>
+      </div>
+
+      <div class="get-started-substep" id="account-details">
+        <div class="flex items-center justify-between gap-3 mb-1">
+          <h2 class="text-xl font-semibold text-base-content">Create your account</h2>
+          <span class="badge badge-soft badge-warning badge-lg shrink-0">
+<span class="icon icon-watch size-[1em] inline-block shrink-0 [&_svg]:w-full [&_svg]:h-full [&_svg]:block" role="img" aria-hidden="true">
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M12 9.00002V12L13.5 13.5M16.51 17.35L16.16 21.18C16.1149 21.6787 15.8845 22.1423 15.5142 22.4792C15.1439 22.8162 14.6607 23.002 14.16 23H9.83C9.32933 23.002 8.84611 22.8162 8.4758 22.4792C8.1055 22.1423 7.87506 21.6787 7.83 21.18L7.48 17.35M7.49 6.65002L7.84 2.82002C7.88491 2.32309 8.11393 1.8609 8.48211 1.52417C8.8503 1.18744 9.33105 1.00049 9.83 1.00002H14.18C14.6807 0.997985 15.1639 1.18381 15.5342 1.52079C15.9045 1.85776 16.1349 2.32137 16.18 2.82002L16.53 6.65002M19 12C19 15.866 15.866 19 12 19C8.13401 19 5 15.866 5 12C5 8.13402 8.13401 5.00002 12 5.00002C15.866 5.00002 19 8.13402 19 12Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
+
+</span>
+~2–3 min</span>
+        </div>
+        <p class="text-sm text-base-content/70 mb-6">You'll need: an email address and your company details.</p>
+
+        <div class="flex flex-col gap-6">
+          <label class="floating-label w-full">
+            <input type="email" id="account-email" class="input input-bordered input-lg w-full" placeholder="Email" autocomplete="email" data-1p-ignore data-lpignore="true" data-bwignore="true" data-form-type="other" />
+            <span>Email</span>
+          </label>
+          <div>
+            <label class="floating-label w-full">
+              <input type="password" id="account-password" class="input input-bordered input-lg w-full" placeholder="Password" autocomplete="new-password" data-1p-ignore data-lpignore="true" data-bwignore="true" data-form-type="other" />
+              <span>Password</span>
+            </label>
+            <p class="text-xs text-base-content/50 mt-2">Minimum of 12 characters, one uppercase character, one lowercase character, one number, and one special character.</p>
+          </div>
+          <label class="floating-label w-full">
+            <input type="text" id="account-first-name" class="input input-bordered input-lg w-full" placeholder="First name" autocomplete="given-name" />
+            <span>First name</span>
+          </label>
+          <label class="floating-label w-full">
+            <input type="text" id="account-last-name" class="input input-bordered input-lg w-full" placeholder="Last name" autocomplete="family-name" />
+            <span>Last name</span>
+          </label>
+          <div>
+            <label class="floating-label w-full">
+              <input type="tel" id="account-phone" class="input input-bordered input-lg w-full" placeholder="Mobile phone number" autocomplete="tel" inputmode="tel" />
+              <span>Mobile phone number</span>
+            </label>
+            <p class="text-xs text-base-content/50 mt-2">Used for multifactor authentication, lost email etc.</p>
+          </div>
+        </div>
+
+        <button type="button" class="btn btn-primary btn-lg btn-block mt-6" id="account-details-next" disabled>Next</button>
+        <p class="text-sm text-base-content/70 text-center mt-4">Already have an account? <a href="/diagnostics-pub/launchpad-2/login/" class="link link-primary">Log in</a></p>
+      </div>
+
+      <div class="get-started-substep hidden" id="account-verify-email">
+        <div class="flex justify-center text-primary mb-4">
+          
+<span class="icon icon-mail w-16 h-16 inline-block shrink-0 [&_svg]:w-full [&_svg]:h-full [&_svg]:block" role="img" aria-hidden="true">
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+  <rect x="2" y="4" width="20" height="16" rx="2"/>
+  <path d="m22 6-10 7L2 6"/>
+</svg>
+
+</span>
+
+        </div>
+        <h2 class="text-xl font-semibold text-base-content mb-1">Verify your email</h2>
+        <p class="text-sm text-base-content/70 mb-6">We emailed a 6-digit code to <span id="account-email-display" class="font-medium text-base-content"></span>. This code will expire in 3 days.</p>
+        <div class="flex justify-center w-full mb-6">
+          <label class="otp otp-lg otp-joined">
+            <span></span><span></span><span></span><span></span><span></span><span></span>
+            <input type="text" autocomplete="one-time-code" inputmode="numeric" id="account-email-code-input" maxlength="6" pattern="[0-9]{6}" data-1p-ignore data-lpignore="true" data-bwignore="true" data-form-type="other" />
+          </label>
+        </div>
+        <label class="label justify-start gap-3 mb-6 cursor-pointer">
+          <input type="checkbox" id="account-terms-checkbox" class="checkbox checkbox-sm" />
+          <span class="label-text text-base-content">I accept the <a href="#" class="link link-primary">terms and conditions</a>.</span>
+        </label>
+        <div class="flex flex-col gap-2">
+          <button type="button" class="btn btn-primary btn-lg btn-block" id="account-verify-email-continue" disabled>Next</button>
+          <button type="button" class="btn btn-ghost btn-block btn-sm" id="account-verify-email-resend">Resend code</button>
+        </div>
+      </div>
+
+      <div class="get-started-substep hidden" id="account-company">
+        <div class="flex items-center gap-3 mb-1">
+          
+<span class="icon icon-garage w-10 h-10 text-primary inline-block shrink-0 [&_svg]:w-full [&_svg]:h-full [&_svg]:block" role="img" aria-hidden="true">
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M12.002 3.77888C12.1982 3.77888 12.3863 3.80896 12.5665 3.86913C12.7467 3.92946 12.9193 4.01988 13.0845 4.14038L18.777 8.42888C19.0028 8.59454 19.1798 8.80546 19.308 9.06163C19.436 9.31763 19.5 9.58871 19.5 9.87488V19.4711C19.5 19.6836 19.4281 19.8617 19.2843 20.0054C19.1404 20.1492 18.9622 20.2211 18.7498 20.2211C18.5371 20.2211 18.359 20.1492 18.2155 20.0054C18.0718 19.8617 18 19.6836 18 19.4711V9.87488C18 9.82371 17.9888 9.77729 17.9663 9.73563C17.9439 9.69396 17.9135 9.65704 17.875 9.62488L12.1828 5.34613C12.1314 5.30129 12.0705 5.27888 12 5.27888C11.9295 5.27888 11.8686 5.30129 11.8173 5.34613L6.125 9.62488C6.0865 9.65704 6.05608 9.69396 6.03375 9.73563C6.01125 9.77729 6 9.82371 6 9.87488V19.4711C6 19.6836 5.92808 19.8617 5.78425 20.0054C5.64042 20.1492 5.46225 20.2211 5.24975 20.2211C5.03708 20.2211 4.859 20.1492 4.7155 20.0054C4.57183 19.8617 4.5 19.6836 4.5 19.4711V9.87488C4.5 9.58871 4.564 9.31763 4.692 9.06163C4.82017 8.80546 4.99717 8.59454 5.223 8.42888L10.9155 4.14038C11.0815 4.01988 11.255 3.92946 11.436 3.86913C11.6172 3.80896 11.8058 3.77888 12.002 3.77888ZM8.75 18.7116H15.25V16.2114H8.75V18.7116ZM8.75 14.7116H15.25V12.2114H8.75V14.7116ZM8.15375 20.2114C7.89775 20.2114 7.68308 20.1248 7.50975 19.9516C7.33658 19.7785 7.25 19.5638 7.25 19.3076V11.6154C7.25 11.3592 7.33658 11.1445 7.50975 10.9714C7.68308 10.7982 7.89775 10.7116 8.15375 10.7116H15.8462C16.1022 10.7116 16.3169 10.7982 16.4902 10.9714C16.6634 11.1445 16.75 11.3592 16.75 11.6154V19.3076C16.75 19.5638 16.6634 19.7785 16.4902 19.9516C16.3169 20.1248 16.1022 20.2114 15.8462 20.2114H8.15375Z" fill="currentColor"/>
+</svg>
+
+</span>
+
+          <h2 class="text-xl font-semibold text-base-content">Company details</h2>
+        </div>
+        <p class="text-sm text-base-content/70 mb-6">Used to set up billing and your workshop profile.</p>
+
+        <div class="flex flex-col gap-6">
+          <div class="flex gap-2 items-end">
+            <label class="floating-label w-full">
+              <input type="text" id="company-vat" class="input input-bordered input-lg w-full" placeholder="VAT number" />
+              <span>VAT number</span>
+            </label>
+            <button type="button" class="btn btn-outline btn-lg shrink-0" id="company-fetch-btn" disabled>Fetch company info</button>
+          </div>
+          <label class="floating-label w-full">
+            <input type="text" id="company-name" class="input input-bordered input-lg w-full" placeholder="Company" disabled />
+            <span>Company</span>
+          </label>
+          <label class="floating-label w-full">
+            <input type="text" id="company-address1" class="input input-bordered input-lg w-full" placeholder="Street address" disabled />
+            <span>Street address</span>
+          </label>
+          <label class="floating-label w-full">
+            <input type="text" id="company-address2" class="input input-bordered input-lg w-full" placeholder="Street address line 2 (optional)" disabled />
+            <span>Street address 2</span>
+          </label>
+          <div class="grid grid-cols-2 gap-4">
+            <label class="floating-label w-full">
+              <input type="text" id="company-postal" class="input input-bordered input-lg w-full" placeholder="Postal code" disabled />
+              <span>Postal code</span>
+            </label>
+            <label class="floating-label w-full">
+              <input type="text" id="company-city" class="input input-bordered input-lg w-full" placeholder="City" disabled />
+              <span>City</span>
+            </label>
+          </div>
+          <label class="floating-label w-full">
+            <input type="text" id="company-region" class="input input-bordered input-lg w-full" placeholder="Region (optional)" disabled />
+            <span>Region</span>
+          </label>
+          <div>
+            <label class="label" for="company-country">
+              <span class="label-text text-base-content/70">Country</span>
+            </label>
+            <select id="company-country" class="select select-bordered select-lg w-full" disabled>
+              <option value="" selected disabled>Select your country</option>
+              <option value="SE">🇸🇪 Sweden</option>
+              <option value="GB">🇬🇧 United Kingdom</option>
+              <option value="DE">🇩🇪 Germany</option>
+              <option value="US">🇺🇸 United States</option>
+              <option value="FI">🇫🇮 Finland</option>
+              <option value="NO">🇳🇴 Norway</option>
+              <option value="DK">🇩🇰 Denmark</option>
+            </select>
+          </div>
+        </div>
+
+        <button type="button" class="btn btn-primary btn-lg btn-block mt-6" id="account-continue" disabled>Create account</button>
+      </div>
+    </div>
+
+    
+    <div class="get-started-step hidden" data-step="2" id="step-phone">
+
+      <div class="get-started-substep" id="phone-entry">
+        <div class="flex items-center justify-between gap-3 mb-1">
+          <h2 class="text-xl font-semibold text-base-content">Verify your phone</h2>
+          <span class="badge badge-soft badge-warning badge-lg shrink-0">
+<span class="icon icon-watch size-[1em] inline-block shrink-0 [&_svg]:w-full [&_svg]:h-full [&_svg]:block" role="img" aria-hidden="true">
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M12 9.00002V12L13.5 13.5M16.51 17.35L16.16 21.18C16.1149 21.6787 15.8845 22.1423 15.5142 22.4792C15.1439 22.8162 14.6607 23.002 14.16 23H9.83C9.32933 23.002 8.84611 22.8162 8.4758 22.4792C8.1055 22.1423 7.87506 21.6787 7.83 21.18L7.48 17.35M7.49 6.65002L7.84 2.82002C7.88491 2.32309 8.11393 1.8609 8.48211 1.52417C8.8503 1.18744 9.33105 1.00049 9.83 1.00002H14.18C14.6807 0.997985 15.1639 1.18381 15.5342 1.52079C15.9045 1.85776 16.1349 2.32137 16.18 2.82002L16.53 6.65002M19 12C19 15.866 15.866 19 12 19C8.13401 19 5 15.866 5 12C5 8.13402 8.13401 5.00002 12 5.00002C15.866 5.00002 19 8.13402 19 12Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
+
+</span>
+~2 min</span>
+        </div>
+        <p class="text-sm text-base-content/70 mb-6">You'll need: your mobile phone — two codes will be sent.</p>
+        <div class="mb-6">
+          <label class="label" for="phone-number">
+            <span class="label-text text-base-content/70">Mobile number</span>
+          </label>
+          <div class="join w-full">
+            <select id="phone-country-code" class="select select-bordered select-lg join-item w-28 shrink-0" aria-label="Country code">
+              <option value="+46" selected>🇸🇪 +46</option>
+              <option value="+44">🇬🇧 +44</option>
+              <option value="+49">🇩🇪 +49</option>
+              <option value="+1">🇺🇸 +1</option>
+              <option value="+358">🇫🇮 +358</option>
+              <option value="+47">🇳🇴 +47</option>
+              <option value="+45">🇩🇰 +45</option>
+            </select>
+            <input type="tel" id="phone-number" class="input input-bordered input-lg join-item flex-1 min-w-0" placeholder="70 123 45 67" autocomplete="tel" inputmode="tel" />
+          </div>
+        </div>
+        <button type="button" class="btn btn-primary btn-lg btn-block" id="phone-send-code-1" disabled>Send code</button>
+      </div>
+
+      <div class="get-started-substep hidden" id="phone-code-1">
+        <div class="flex justify-center text-primary mb-4">
+          <span class="w-20 h-20 [&_svg]:w-full [&_svg]:h-full" aria-hidden="true">
+            <svg width="93" height="94" viewBox="0 0 93 94" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path fill-rule="evenodd" clip-rule="evenodd" d="M47.0099 33.1139C46.5115 33.8135 46.3352 34.6848 46.3352 35.2499V65.0094L49.2149 62.0987H78.7108C80.1136 62.0987 80.8893 61.5316 81.3492 60.8859C81.8476 60.1863 82.0239 59.3151 82.0239 58.7499V35.2499C82.0239 33.8321 81.4629 33.048 80.8241 32.5831C80.1319 32.0794 79.2699 31.9012 78.7108 31.9012H49.6483C48.2455 31.9012 47.4698 32.4682 47.0099 33.1139ZM45.3117 31.8781C46.1596 30.6878 47.5636 29.7862 49.6483 29.7862H78.7108C79.6048 29.7862 80.9225 30.0485 82.0467 30.8667C83.2243 31.7237 84.1164 33.1428 84.1164 35.2499V58.7499C84.1164 59.6535 83.8568 60.9854 83.0474 62.1217C82.1995 63.312 80.7955 64.2137 78.7108 64.2137H50.0817L44.2427 70.1154V35.2499C44.2427 34.3463 44.5023 33.0145 45.3117 31.8781Z" fill="currentColor"/>
+              <path d="M56.4272 47.1209C56.4272 48.289 55.4904 49.2359 54.3347 49.2359C53.1791 49.2359 52.2422 48.289 52.2422 47.1209C52.2422 45.9529 53.1791 45.0059 54.3347 45.0059C55.4904 45.0059 56.4272 45.9529 56.4272 47.1209Z" fill="currentColor"/>
+              <path d="M66.4247 47.1209C66.4247 48.289 65.4879 49.2359 64.3322 49.2359C63.1766 49.2359 62.2397 48.289 62.2397 47.1209C62.2397 45.9529 63.1766 45.0059 64.3322 45.0059C65.4879 45.0059 66.4247 45.9529 66.4247 47.1209Z" fill="currentColor"/>
+              <path d="M76.4222 47.1209C76.4222 48.289 75.4854 49.2359 74.3297 49.2359C73.1741 49.2359 72.2372 48.289 72.2372 47.1209C72.2372 45.9529 73.1741 45.0059 74.3297 45.0059C75.4854 45.0059 76.4222 45.9529 76.4222 47.1209Z" fill="currentColor"/>
+              <path fill-rule="evenodd" clip-rule="evenodd" d="M18.703 4.42922C19.8272 3.61104 21.1449 3.34866 22.0389 3.34866H59.8202C61.9049 3.34866 63.3089 4.25033 64.1567 5.4406C64.9662 6.57695 65.2258 7.90881 65.2258 8.81241V23.4999H63.1333V15.7449H18.7258V78.2549H63.1333V70.4999H65.2258V85.1874C65.2258 87.3607 64.1531 88.7671 62.9485 89.5889C61.8003 90.3722 60.5052 90.6512 59.8202 90.6512H22.0389C19.9542 90.6512 18.5502 89.7495 17.7024 88.5592C16.8929 87.4229 16.6333 86.091 16.6333 85.1874V8.81241C16.6333 6.70525 17.5254 5.28621 18.703 4.42922ZM63.1333 80.3699H18.7258V85.1874C18.7258 85.7526 18.9021 86.6238 19.4005 87.3234C19.8604 87.9691 20.6362 88.5362 22.0389 88.5362H59.8202C60.1039 88.5362 60.9884 88.3744 61.7778 87.8359C62.5107 87.3359 63.1333 86.5392 63.1333 85.1874V80.3699ZM18.7258 13.6299H63.1333V8.81241C63.1333 8.24726 62.9569 7.376 62.4586 6.67641C61.9987 6.03074 61.2229 5.46366 59.8202 5.46366H22.0389C21.4798 5.46366 20.6178 5.64191 19.9256 6.14561C19.2868 6.61049 18.7258 7.39457 18.7258 8.81241V13.6299Z" fill="currentColor"/>
+            </svg>
+          </span>
+        </div>
+        <h2 class="text-xl font-semibold text-base-content mb-1">Enter the code</h2>
+        <p class="text-sm text-base-content/70 mb-6">We sent a code to <span id="phone-number-display" class="font-medium text-base-content"></span>. It's valid for a few minutes.</p>
+        <div class="flex justify-center w-full mb-6">
+          <label class="otp otp-lg otp-joined">
+            <span></span><span></span><span></span><span></span><span></span><span></span>
+            <input type="text" autocomplete="one-time-code" inputmode="numeric" id="phone-code-1-input" maxlength="6" pattern="[0-9]{6}" data-1p-ignore data-lpignore="true" data-bwignore="true" data-form-type="other" />
+          </label>
+        </div>
+        <div class="flex flex-col gap-2">
+          <button type="button" class="btn btn-primary btn-lg btn-block" id="phone-code-1-continue" disabled>Continue</button>
+          <button type="button" class="btn btn-ghost btn-block btn-sm" id="phone-code-1-resend">Resend code</button>
+        </div>
+      </div>
+
+      <div class="get-started-substep hidden" id="phone-trust-device">
+        <div class="flex justify-center text-primary mb-4">
+          <span class="w-20 h-20 [&_svg]:w-full [&_svg]:h-full" aria-hidden="true">
+            <svg width="93" height="94" viewBox="0 0 93 94" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path fill-rule="evenodd" clip-rule="evenodd" d="M18.703 4.42922C19.8272 3.61104 21.1449 3.34866 22.0389 3.34866H59.8202C61.9049 3.34866 63.3089 4.25033 64.1567 5.4406C64.9662 6.57695 65.2258 7.90881 65.2258 8.81241V23.4999H63.1333V15.7449H18.7258V78.2549H63.1333V70.4999H65.2258V85.1874C65.2258 87.3607 64.1531 88.7671 62.9485 89.5889C61.8003 90.3722 60.5052 90.6512 59.8202 90.6512H22.0389C19.9542 90.6512 18.5502 89.7495 17.7024 88.5592C16.8929 87.4229 16.6333 86.091 16.6333 85.1874V8.81241C16.6333 6.70525 17.5254 5.28621 18.703 4.42922ZM63.1333 80.3699H18.7258V85.1874C18.7258 85.7526 18.9021 86.6238 19.4005 87.3234C19.8604 87.9691 20.6362 88.5362 22.0389 88.5362H59.8202C60.1039 88.5362 60.9884 88.3744 61.7778 87.8359C62.5107 87.3359 63.1333 86.5392 63.1333 85.1874V80.3699ZM18.7258 13.6299H63.1333V8.81241C63.1333 8.24726 62.9569 7.376 62.4586 6.67641C61.9987 6.03074 61.2229 5.46366 59.8202 5.46366H22.0389C21.4798 5.46366 20.6178 5.64191 19.9256 6.14561C19.2868 6.61049 18.7258 7.39457 18.7258 8.81241V13.6299Z" fill="currentColor"/>
+              <path d="M77 32H50V49C50 53.5146 53.203 57.2448 56.9414 60.0186C58.7623 61.3696 60.5962 62.4059 61.9805 63.1055C62.5939 63.4155 63.1149 63.6551 63.5 63.8262C63.8851 63.6551 64.4061 63.4155 65.0195 63.1055C66.4038 62.4059 68.2377 61.3696 70.0586 60.0186C73.797 57.2448 77 53.5146 77 49V32ZM79 49C79 60 63.5 66 63.5 66C63.5 66 48 60 48 49V30H79C79 30 79 40.5 79 49Z" fill="currentColor"/>
+              <path d="M71.7744 41.6328L62.167 53.375L55.4004 48.2998L56.5996 46.7002L61.832 50.625L70.2256 40.3672L71.7744 41.6328Z" fill="currentColor"/>
+            </svg>
+          </span>
+        </div>
+        <h2 class="text-xl font-semibold text-base-content mb-1">Trust this device?</h2>
+        <p class="text-sm text-base-content/70 mb-6">Trusting this device skips SMS verification on future logins here, and unlocks full Secure Gateway access — including OE data and other protected systems.</p>
+        <div class="flex flex-col gap-2">
+          <button type="button" class="btn btn-primary btn-lg btn-block" id="phone-trust-yes">Yes, trust this device</button>
+          <button type="button" class="btn btn-ghost btn-lg btn-block" id="phone-trust-no">Not now</button>
+        </div>
+      </div>
+
+      <div class="get-started-substep hidden" id="phone-code-2">
+        <button type="button" class="btn btn-ghost btn-sm -ml-2 mb-2" id="phone-code-2-back">
+<span class="icon icon-arrow-left w-4 h-4 inline-block shrink-0 [&_svg]:w-full [&_svg]:h-full [&_svg]:block" role="img" aria-hidden="true">
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M19 12H5M5 12L12 19M5 12L12 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
+
+</span>
+ Back</button>
+        <div class="flex justify-center text-primary mb-4">
+          
+<span class="icon icon-lock w-16 h-16 inline-block shrink-0 [&_svg]:w-full [&_svg]:h-full [&_svg]:block" role="img" aria-hidden="true">
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+  <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+  <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+</svg>
+
+</span>
+
+        </div>
+        <h2 class="text-xl font-semibold text-base-content mb-1">Activate Secure Gateway on this device</h2>
+        <p class="text-sm text-base-content/70 mb-6">This one-time code turns on full Secure Gateway access on this computer. You won't be asked for it again here — this step only happens once per device.</p>
+        <div class="flex justify-center w-full mb-6">
+          <label class="otp otp-lg otp-joined">
+            <span></span><span></span><span></span><span></span><span></span><span></span>
+            <input type="text" autocomplete="one-time-code" inputmode="numeric" id="phone-code-2-input" maxlength="6" pattern="[0-9]{6}" data-1p-ignore data-lpignore="true" data-bwignore="true" data-form-type="other" />
+          </label>
+        </div>
+        <div class="flex flex-col gap-2">
+          <button type="button" class="btn btn-primary btn-lg btn-block" id="phone-code-2-continue" disabled>Continue</button>
+          <button type="button" class="btn btn-ghost btn-block btn-sm" id="phone-code-2-resend">Resend code</button>
+          <button type="button" class="btn btn-ghost btn-block" id="phone-code-2-skip">Skip for now</button>
+        </div>
+      </div>
+
+      <div class="get-started-substep hidden" id="phone-verified">
+        <div class="flex flex-col items-center text-center gap-3 py-6">
+          <span class="text-success">
+<span class="icon icon-success w-12 h-12 inline-block shrink-0 [&_svg]:w-full [&_svg]:h-full [&_svg]:block" role="img" aria-hidden="true">
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+  <circle cx="12" cy="12" r="10"/>
+  <path d="m9 12 2 2 4-4"/>
+</svg>
+
+</span>
+</span>
+          <h2 class="text-xl font-semibold text-base-content">Phone verified</h2>
+        </div>
+      </div>
+    </div>
+
+    
+    <div class="get-started-step hidden" data-step="3" id="step-identity">
+
+      <div class="get-started-substep" id="identity-intro">
+        <div class="flex items-center justify-between gap-3 mb-1">
+          <div class="flex items-center gap-3">
+            
+<span class="icon icon-shield w-10 h-10 text-primary inline-block shrink-0 [&_svg]:w-full [&_svg]:h-full [&_svg]:block" role="img" aria-hidden="true">
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M12.5 21.9422C10.3372 21.3525 8.54646 20.0794 7.12787 18.123C5.70929 16.1666 5 13.9794 5 11.5615V5.80768L12.5 3L20 5.80768V11.5615C20 13.9794 19.2907 16.1666 17.8721 18.123C16.4535 20.0794 14.6628 21.3525 12.5 21.9422ZM12.5 20.3615C14.2333 19.8115 15.6666 18.7115 16.8 17.0615C17.9333 15.4115 18.5 13.5782 18.5 11.5615V6.8365L12.5 4.59613L6.49997 6.8365V11.5615C6.49997 13.5782 7.06664 15.4115 8.19997 17.0615C9.33331 18.7115 10.7666 19.8115 12.5 20.3615Z" fill="currentColor"/>
+</svg>
+
+</span>
+
+            <h2 class="text-xl font-semibold text-base-content">Verify your identity</h2>
+          </div>
+          <span class="badge badge-soft badge-warning badge-lg shrink-0">
+<span class="icon icon-watch size-[1em] inline-block shrink-0 [&_svg]:w-full [&_svg]:h-full [&_svg]:block" role="img" aria-hidden="true">
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M12 9.00002V12L13.5 13.5M16.51 17.35L16.16 21.18C16.1149 21.6787 15.8845 22.1423 15.5142 22.4792C15.1439 22.8162 14.6607 23.002 14.16 23H9.83C9.32933 23.002 8.84611 22.8162 8.4758 22.4792C8.1055 22.1423 7.87506 21.6787 7.83 21.18L7.48 17.35M7.49 6.65002L7.84 2.82002C7.88491 2.32309 8.11393 1.8609 8.48211 1.52417C8.8503 1.18744 9.33105 1.00049 9.83 1.00002H14.18C14.6807 0.997985 15.1639 1.18381 15.5342 1.52079C15.9045 1.85776 16.1349 2.32137 16.18 2.82002L16.53 6.65002M19 12C19 15.866 15.866 19 12 19C8.13401 19 5 15.866 5 12C5 8.13402 8.13401 5.00002 12 5.00002C15.866 5.00002 19 8.13402 19 12Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
+
+</span>
+~2–3 min</span>
+        </div>
+        <p class="text-sm text-base-content/70 mb-6">Verified by iDenfy, a secure third-party partner — not Autocom directly. Confirms it's really you and unlocks Secure Gateway; your ID is never shared.</p>
+
+        <ul class="flex flex-col gap-3 mb-6">
+          <li class="flex items-center gap-3 text-sm">
+            <span class="flex items-center justify-center shrink-0 w-8 h-8 rounded-full bg-primary/10 text-primary">
+<span class="icon icon-smartphone w-4 h-4 inline-block shrink-0 [&_svg]:w-full [&_svg]:h-full [&_svg]:block" role="img" aria-hidden="true">
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
+  <rect x="5" y="2" width="14" height="20" rx="2" ry="2"/>
+  <line x1="12" y1="18" x2="12.01" y2="18"/>
+</svg>
+
+</span>
+</span>
+            <span class="text-base-content">Have your phone within reach</span>
+          </li>
+          <li class="flex items-center gap-3 text-sm">
+            <span class="flex items-center justify-center shrink-0 w-8 h-8 rounded-full bg-primary/10 text-primary">
+<span class="icon icon-document w-4 h-4 inline-block shrink-0 [&_svg]:w-full [&_svg]:h-full [&_svg]:block" role="img" aria-hidden="true">
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true">
+  <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
+</svg>
+
+</span>
+</span>
+            <span class="text-base-content">Photo of identity document</span>
+          </li>
+          <li class="flex items-center gap-3 text-sm">
+            <span class="flex items-center justify-center shrink-0 w-8 h-8 rounded-full bg-primary/10 text-primary">
+<span class="icon icon-user w-4 h-4 inline-block shrink-0 [&_svg]:w-full [&_svg]:h-full [&_svg]:block" role="img" aria-hidden="true">
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M20 21V19C20 17.9391 19.5786 16.9217 18.8284 16.1716C18.0783 15.4214 17.0609 15 16 15H8C6.93913 15 5.92172 15.4214 5.17157 16.1716C4.42143 16.9217 4 17.9391 4 19V21M16 7C16 9.20914 14.2091 11 12 11C9.79086 11 8 9.20914 8 7C8 4.79086 9.79086 3 12 3C14.2091 3 16 4.79086 16 7Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
+
+</span>
+</span>
+            <span class="text-base-content">Quick selfie scan</span>
+          </li>
+          <li class="flex items-center gap-3 text-sm">
+            <span class="flex items-center justify-center shrink-0 w-8 h-8 rounded-full bg-primary/10 text-primary">
+<span class="icon icon-success w-4 h-4 inline-block shrink-0 [&_svg]:w-full [&_svg]:h-full [&_svg]:block" role="img" aria-hidden="true">
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+  <circle cx="12" cy="12" r="10"/>
+  <path d="m9 12 2 2 4-4"/>
+</svg>
+
+</span>
+</span>
+            <span class="text-base-content">Automated verification</span>
+          </li>
+        </ul>
+
+        <button type="button" class="btn btn-primary btn-lg btn-block" id="identity-start">Start verification</button>
+      </div>
+
+      
+      <div class="get-started-substep hidden" id="identity-qr-handoff">
+        <div class="flex flex-col items-center text-center gap-4 py-2">
+          <h2 class="text-xl font-semibold text-base-content">Continue on your phone</h2>
+          <p class="text-sm text-base-content/70 -mt-2">iDenfy needs a camera to scan your ID and take a selfie. Scan this code with your phone to continue — this screen will update automatically.</p>
+          <div class="bg-white rounded-box p-3 shadow-sm w-44 h-44 shrink-0">
+            
+<svg viewBox="0 0 21 21" shape-rendering="crispEdges" class="w-full h-full" role="img" aria-label="QR code (illustrative, not scannable)">
+  <rect width="21" height="21" fill="#fff"/>
+  <rect x="0" y="0" width="7" height="7" fill="#000"/>
+  <rect x="1" y="1" width="5" height="5" fill="#fff"/>
+  <rect x="2" y="2" width="3" height="3" fill="#000"/>
+  <rect x="14" y="0" width="7" height="7" fill="#000"/>
+  <rect x="15" y="1" width="5" height="5" fill="#fff"/>
+  <rect x="16" y="2" width="3" height="3" fill="#000"/>
+  <rect x="0" y="14" width="7" height="7" fill="#000"/>
+  <rect x="1" y="15" width="5" height="5" fill="#fff"/>
+  <rect x="2" y="16" width="3" height="3" fill="#000"/>
+  <rect x="10" y="0" width="1" height="1" fill="#000"/><rect x="12" y="0" width="1" height="1" fill="#000"/><rect x="9" y="1" width="1" height="1" fill="#000"/><rect x="11" y="1" width="1" height="1" fill="#000"/><rect x="8" y="2" width="1" height="1" fill="#000"/><rect x="10" y="2" width="1" height="1" fill="#000"/><rect x="12" y="2" width="1" height="1" fill="#000"/><rect x="9" y="3" width="1" height="1" fill="#000"/><rect x="11" y="3" width="1" height="1" fill="#000"/><rect x="8" y="4" width="1" height="1" fill="#000"/><rect x="10" y="4" width="1" height="1" fill="#000"/><rect x="9" y="5" width="1" height="1" fill="#000"/><rect x="12" y="5" width="1" height="1" fill="#000"/><rect x="8" y="6" width="1" height="1" fill="#000"/><rect x="11" y="6" width="1" height="1" fill="#000"/><rect x="10" y="7" width="1" height="1" fill="#000"/><rect x="12" y="7" width="1" height="1" fill="#000"/><rect x="2" y="8" width="1" height="1" fill="#000"/><rect x="4" y="8" width="1" height="1" fill="#000"/><rect x="6" y="8" width="1" height="1" fill="#000"/><rect x="9" y="8" width="1" height="1" fill="#000"/><rect x="11" y="8" width="1" height="1" fill="#000"/><rect x="13" y="8" width="1" height="1" fill="#000"/><rect x="16" y="8" width="1" height="1" fill="#000"/><rect x="18" y="8" width="1" height="1" fill="#000"/><rect x="20" y="8" width="1" height="1" fill="#000"/><rect x="1" y="9" width="1" height="1" fill="#000"/><rect x="3" y="9" width="1" height="1" fill="#000"/><rect x="5" y="9" width="1" height="1" fill="#000"/><rect x="8" y="9" width="1" height="1" fill="#000"/><rect x="10" y="9" width="1" height="1" fill="#000"/><rect x="12" y="9" width="1" height="1" fill="#000"/><rect x="15" y="9" width="1" height="1" fill="#000"/><rect x="17" y="9" width="1" height="1" fill="#000"/><rect x="19" y="9" width="1" height="1" fill="#000"/><rect x="0" y="10" width="1" height="1" fill="#000"/><rect x="2" y="10" width="1" height="1" fill="#000"/><rect x="4" y="10" width="1" height="1" fill="#000"/><rect x="7" y="10" width="1" height="1" fill="#000"/><rect x="9" y="10" width="1" height="1" fill="#000"/><rect x="11" y="10" width="1" height="1" fill="#000"/><rect x="14" y="10" width="1" height="1" fill="#000"/><rect x="16" y="10" width="1" height="1" fill="#000"/><rect x="18" y="10" width="1" height="1" fill="#000"/><rect x="1" y="11" width="1" height="1" fill="#000"/><rect x="3" y="11" width="1" height="1" fill="#000"/><rect x="6" y="11" width="1" height="1" fill="#000"/><rect x="8" y="11" width="1" height="1" fill="#000"/><rect x="10" y="11" width="1" height="1" fill="#000"/><rect x="13" y="11" width="1" height="1" fill="#000"/><rect x="15" y="11" width="1" height="1" fill="#000"/><rect x="17" y="11" width="1" height="1" fill="#000"/><rect x="20" y="11" width="1" height="1" fill="#000"/><rect x="0" y="12" width="1" height="1" fill="#000"/><rect x="2" y="12" width="1" height="1" fill="#000"/><rect x="5" y="12" width="1" height="1" fill="#000"/><rect x="7" y="12" width="1" height="1" fill="#000"/><rect x="9" y="12" width="1" height="1" fill="#000"/><rect x="12" y="12" width="1" height="1" fill="#000"/><rect x="14" y="12" width="1" height="1" fill="#000"/><rect x="16" y="12" width="1" height="1" fill="#000"/><rect x="19" y="12" width="1" height="1" fill="#000"/><rect x="8" y="13" width="1" height="1" fill="#000"/><rect x="11" y="13" width="1" height="1" fill="#000"/><rect x="13" y="13" width="1" height="1" fill="#000"/><rect x="15" y="13" width="1" height="1" fill="#000"/><rect x="18" y="13" width="1" height="1" fill="#000"/><rect x="20" y="13" width="1" height="1" fill="#000"/><rect x="10" y="14" width="1" height="1" fill="#000"/><rect x="12" y="14" width="1" height="1" fill="#000"/><rect x="14" y="14" width="1" height="1" fill="#000"/><rect x="17" y="14" width="1" height="1" fill="#000"/><rect x="19" y="14" width="1" height="1" fill="#000"/><rect x="9" y="15" width="1" height="1" fill="#000"/><rect x="11" y="15" width="1" height="1" fill="#000"/><rect x="13" y="15" width="1" height="1" fill="#000"/><rect x="16" y="15" width="1" height="1" fill="#000"/><rect x="18" y="15" width="1" height="1" fill="#000"/><rect x="20" y="15" width="1" height="1" fill="#000"/><rect x="8" y="16" width="1" height="1" fill="#000"/><rect x="10" y="16" width="1" height="1" fill="#000"/><rect x="12" y="16" width="1" height="1" fill="#000"/><rect x="15" y="16" width="1" height="1" fill="#000"/><rect x="17" y="16" width="1" height="1" fill="#000"/><rect x="19" y="16" width="1" height="1" fill="#000"/><rect x="9" y="17" width="1" height="1" fill="#000"/><rect x="11" y="17" width="1" height="1" fill="#000"/><rect x="14" y="17" width="1" height="1" fill="#000"/><rect x="16" y="17" width="1" height="1" fill="#000"/><rect x="18" y="17" width="1" height="1" fill="#000"/><rect x="8" y="18" width="1" height="1" fill="#000"/><rect x="10" y="18" width="1" height="1" fill="#000"/><rect x="13" y="18" width="1" height="1" fill="#000"/><rect x="15" y="18" width="1" height="1" fill="#000"/><rect x="17" y="18" width="1" height="1" fill="#000"/><rect x="20" y="18" width="1" height="1" fill="#000"/><rect x="9" y="19" width="1" height="1" fill="#000"/><rect x="12" y="19" width="1" height="1" fill="#000"/><rect x="14" y="19" width="1" height="1" fill="#000"/><rect x="16" y="19" width="1" height="1" fill="#000"/><rect x="19" y="19" width="1" height="1" fill="#000"/><rect x="8" y="20" width="1" height="1" fill="#000"/><rect x="11" y="20" width="1" height="1" fill="#000"/><rect x="13" y="20" width="1" height="1" fill="#000"/><rect x="15" y="20" width="1" height="1" fill="#000"/><rect x="18" y="20" width="1" height="1" fill="#000"/><rect x="20" y="20" width="1" height="1" fill="#000"/>
+</svg>
+
+          </div>
+          <p class="text-xs text-base-content/50 font-mono tracking-wide">Session code: 7F3K-92QD</p>
+          <div class="flex items-center gap-2 text-sm text-base-content/70 mt-1">
+            <span class="loading loading-spinner loading-sm text-primary"></span>
+            <span>Waiting for your phone…</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="get-started-substep hidden" id="identity-scan-front">
+        <h2 class="text-xl font-semibold text-base-content mb-1">Scan the front of your ID</h2>
+        <p class="text-sm text-base-content/70 mb-6">You're now verifying from your phone. Here we'll simulate the camera scan.</p>
+        <div class="relative overflow-hidden rounded-box border-2 border-dashed border-base-300 bg-base-200 aspect-video flex items-center justify-center mb-6" id="identity-scan-front-box">
+          <span id="identity-scan-front-icon-default">
+<span class="icon icon-document w-10 h-10 text-base-content/40 inline-block shrink-0 [&_svg]:w-full [&_svg]:h-full [&_svg]:block" role="img" aria-hidden="true">
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true">
+  <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
+</svg>
+
+</span>
+</span>
+          <span class="hidden text-success" id="identity-scan-front-icon-captured">
+<span class="icon icon-success w-10 h-10 inline-block shrink-0 [&_svg]:w-full [&_svg]:h-full [&_svg]:block" role="img" aria-hidden="true">
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+  <circle cx="12" cy="12" r="10"/>
+  <path d="m9 12 2 2 4-4"/>
+</svg>
+
+</span>
+</span>
+          <div class="scan-flash" aria-hidden="true"></div>
+        </div>
+        <button type="button" class="btn btn-primary btn-lg btn-block" id="identity-scan-front-btn">Scan the front (1/3)</button>
+      </div>
+
+      <div class="get-started-substep hidden" id="identity-scan-back">
+        <h2 class="text-xl font-semibold text-base-content mb-1">Scan the back of your ID</h2>
+        <p class="text-sm text-base-content/70 mb-6">Almost done — just the back of the same ID.</p>
+        <div class="relative overflow-hidden rounded-box border-2 border-dashed border-base-300 bg-base-200 aspect-video flex items-center justify-center mb-6" id="identity-scan-back-box">
+          <span id="identity-scan-back-icon-default">
+<span class="icon icon-document w-10 h-10 text-base-content/40 inline-block shrink-0 [&_svg]:w-full [&_svg]:h-full [&_svg]:block" role="img" aria-hidden="true">
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true">
+  <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
+</svg>
+
+</span>
+</span>
+          <span class="hidden text-success" id="identity-scan-back-icon-captured">
+<span class="icon icon-success w-10 h-10 inline-block shrink-0 [&_svg]:w-full [&_svg]:h-full [&_svg]:block" role="img" aria-hidden="true">
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+  <circle cx="12" cy="12" r="10"/>
+  <path d="m9 12 2 2 4-4"/>
+</svg>
+
+</span>
+</span>
+          <div class="scan-flash" aria-hidden="true"></div>
+        </div>
+        <button type="button" class="btn btn-primary btn-lg btn-block" id="identity-scan-back-btn">Scan the back (2/3)</button>
+      </div>
+
+      <div class="get-started-substep hidden" id="identity-scan-selfie">
+        <h2 class="text-xl font-semibold text-base-content mb-1">Take a selfie</h2>
+        <p class="text-sm text-base-content/70 mb-6">Last step — iDenfy matches this against your ID photo. Here we'll simulate the scan.</p>
+        <div class="relative overflow-hidden rounded-box border-2 border-dashed border-base-300 bg-base-200 aspect-video flex items-center justify-center mb-6" id="identity-scan-selfie-box">
+          <span id="identity-scan-selfie-icon-default">
+<span class="icon icon-user w-10 h-10 text-base-content/40 inline-block shrink-0 [&_svg]:w-full [&_svg]:h-full [&_svg]:block" role="img" aria-hidden="true">
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M20 21V19C20 17.9391 19.5786 16.9217 18.8284 16.1716C18.0783 15.4214 17.0609 15 16 15H8C6.93913 15 5.92172 15.4214 5.17157 16.1716C4.42143 16.9217 4 17.9391 4 19V21M16 7C16 9.20914 14.2091 11 12 11C9.79086 11 8 9.20914 8 7C8 4.79086 9.79086 3 12 3C14.2091 3 16 4.79086 16 7Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
+
+</span>
+</span>
+          <span class="hidden text-success" id="identity-scan-selfie-icon-captured">
+<span class="icon icon-success w-10 h-10 inline-block shrink-0 [&_svg]:w-full [&_svg]:h-full [&_svg]:block" role="img" aria-hidden="true">
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+  <circle cx="12" cy="12" r="10"/>
+  <path d="m9 12 2 2 4-4"/>
+</svg>
+
+</span>
+</span>
+          <div class="scan-flash" aria-hidden="true"></div>
+        </div>
+        <button type="button" class="btn btn-primary btn-lg btn-block" id="identity-scan-selfie-btn">Take a selfie (3/3)</button>
+      </div>
+
+      <div class="get-started-substep hidden" id="identity-verifying">
+        <div class="flex flex-col items-center text-center gap-3 py-6">
+          <span class="loading loading-spinner loading-lg text-primary"></span>
+          <h2 class="text-xl font-semibold text-base-content">Verifying your identity…</h2>
+          <p class="text-sm text-base-content/70">This usually takes less than a minute.</p>
+        </div>
+      </div>
+
+      <div class="get-started-substep hidden" id="identity-verified">
+        <div class="flex flex-col items-center text-center gap-3 py-6">
+          <span class="text-success">
+<span class="icon icon-success w-12 h-12 inline-block shrink-0 [&_svg]:w-full [&_svg]:h-full [&_svg]:block" role="img" aria-hidden="true">
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+  <circle cx="12" cy="12" r="10"/>
+  <path d="m9 12 2 2 4-4"/>
+</svg>
+
+</span>
+</span>
+          <h2 class="text-xl font-semibold text-base-content">Identity verified</h2>
+        </div>
+      </div>
+
+      <div class="get-started-substep hidden" id="get-started-complete">
+        <div class="flex flex-col items-center text-center gap-3 py-6">
+          <span class="text-success">
+<span class="icon icon-success w-12 h-12 inline-block shrink-0 [&_svg]:w-full [&_svg]:h-full [&_svg]:block" role="img" aria-hidden="true">
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+  <circle cx="12" cy="12" r="10"/>
+  <path d="m9 12 2 2 4-4"/>
+</svg>
+
+</span>
+</span>
+          <h2 class="text-xl font-semibold text-base-content">You're all set!</h2>
+          <p class="text-sm text-base-content/70">Your account is ready. Next, connect your VCI to run your first scan.</p>
+        </div>
+        <a href="/diagnostics-pub/launchpad-2/add-vci/" class="btn btn-primary btn-lg btn-block">Continue</a>
+      </div>
+    </div>
+
+    </div>
+  </div>
+</div>
+<script src="/diagnostics-pub/assets/scripts/connectivity-check.js"></script>
+<script src="/diagnostics-pub/assets/scripts/get-started.js"></script>
+
+    
+<div id="prototype-gate-root" class="prototype-gate-root fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm" aria-modal="true" role="dialog" aria-labelledby="prototype-gate-title" aria-describedby="prototype-gate-desc">
+  <div class="card bg-base-100 border border-base-300 shadow-xl w-full max-w-xs sm:max-w-sm">
+    <div class="card-body p-6 sm:p-8">
+      <h2 id="prototype-gate-title" class="card-title text-xl mb-3">Prototype access</h2>
+      <p id="prototype-gate-desc" class="text-sm text-base-content/80 leading-relaxed mb-8">This build is password-protected. Enter the password to continue.</p>
+      <div class="flex flex-col gap-8">
+        <label class="floating-label w-full">
+          <input type="password" id="prototype-gate-input" class="input input-bordered w-full" placeholder="Password" autocomplete="current-password" />
+          <span>Password</span>
+        </label>
+        <div class="flex flex-col gap-3">
+          <p id="prototype-gate-error" class="text-sm text-error leading-snug hidden min-h-0" role="alert">Incorrect password. Try again.</p>
+          <button type="button" id="prototype-gate-submit" class="btn btn-primary btn-block">Continue</button>
+        </div>
+      </div>
+      <noscript><p class="text-sm text-warning mt-6">JavaScript is required to unlock this prototype.</p></noscript>
+    </div>
+  </div>
+</div>
+
+    <script src="/diagnostics-pub/assets/scripts/prototype-gate.js"></script>
+
+</body>
+</html>

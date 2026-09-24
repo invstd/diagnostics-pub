@@ -1,0 +1,1314 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="Hi-Tech">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ECU detail - Diagnostics Platform</title>
+    <script>
+      (function() {
+        // Usability-test / demo links can carry presets as URL params (?theme=&language=&mode=),
+        // generated from Launchpad 2 Settings. Seed localStorage from them before first paint —
+        // same place base.njk already reads 'theme' from — then strip just those keys from the
+        // URL (preserving any other params, e.g. diagnostics-dashboard's vehicle data) so a
+        // bookmarked/reloaded link doesn't keep re-forcing presets after the tester's own
+        // in-session changes.
+        var params = new URLSearchParams(location.search);
+        var PRESET_PARAM_TO_STORAGE_KEY = { theme: 'theme', language: 'language', mode: 'launchpad-onboarding-mode', notif: 'launchpad-notifications-suppressed', vehicleType: 'automechanika-vehicle-type', role: 'automechanika-role' };
+        var paramsChanged = false;
+        Object.keys(PRESET_PARAM_TO_STORAGE_KEY).forEach(function (param) {
+          if (params.has(param)) {
+            var value = params.get(param);
+            // Automechanika's Settings Test Link now generates brand-only theme values ("WOW",
+            // not "WOW Dark" — light/dark is the sidebar footer's own toggle, not part of the
+            // preset link, see automechanika-theme-toggle.js) — resolve those against whichever
+            // mode was last selected on this device, defaulting to Dark if none has been yet.
+            // Full theme names ("Hi-Tech", "WOW Dark", …) pass through unchanged.
+            if (param === 'theme' && /^(Autocom|WOW|Wabco)$/.test(value)) {
+              value = value + ' ' + (localStorage.getItem('theme-mode') || 'Dark');
+            }
+            localStorage.setItem(PRESET_PARAM_TO_STORAGE_KEY[param], value);
+            params.delete(param);
+            paramsChanged = true;
+          }
+        });
+        // ?gate=<issued-at-ms> bypasses the prototype password gate (sessionStorage, same
+        // key/value the gate itself writes on a correct password) for 30 days from when the link
+        // was generated (Settings' Test Link) — runs before the next script block below reads it,
+        // so the gate never flashes. A plain boolean bypass (the old ?gate=1) would work forever
+        // no matter how many times the real password gets rotated, since it never checks the
+        // password at all — this at least puts a shelf life on a shared/bookmarked link. Not real
+        // security either way (a hand-edited timestamp bypasses this too), see prototype-gate.js.
+        var gateParam = params.get('gate');
+        if (gateParam) {
+          var gateIssuedAt = parseInt(gateParam, 10);
+          var GATE_LINK_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
+          if (!isNaN(gateIssuedAt) && (Date.now() - gateIssuedAt) < GATE_LINK_MAX_AGE_MS) {
+            try { sessionStorage.setItem('autocom-prototype-gate', '1'); } catch (e) {}
+          }
+          params.delete('gate');
+          paramsChanged = true;
+        }
+        if (paramsChanged) {
+          var newSearch = params.toString();
+          history.replaceState(null, '', location.pathname + (newSearch ? '?' + newSearch : '') + location.hash);
+        }
+        var saved = localStorage.getItem('theme');
+        document.documentElement.setAttribute('data-theme', saved || 'Hi-Tech');
+        // Role (Admin/User) — for sharing a link with trusted external users while hiding
+        // internal-only Settings sections (data-admin-only, see main.css). Client-side only, same
+        // "not real security" caveat as the password gate (prototype-gate.js) — fine for hiding
+        // UI from a trusted-audience demo link, not an access-control boundary. Defaults to Admin
+        // (today's full-access behavior) so any link without ?role= is unaffected.
+        document.documentElement.setAttribute('data-role', localStorage.getItem('automechanika-role') || 'Admin');
+      })();
+    </script>
+    <script>
+      (function () {
+        try {
+          if (sessionStorage.getItem('autocom-prototype-gate') === '1') {
+            document.documentElement.classList.add('prototype-gate-unlocked');
+          }
+        } catch (e) {}
+      })();
+    </script>
+    <link rel="stylesheet" href="/diagnostics-pub/assets/styles/main.css">
+
+</head>
+<body class="bg-base-100 text-base-content">
+
+    
+
+
+<div class="automechanika-shell drawer lg:drawer-open min-h-screen">
+  <input id="automechanika-drawer" type="checkbox" class="drawer-toggle" />
+  
+  <div class="drawer-content flex flex-col lg:h-screen lg:overflow-hidden">
+    
+    <div class="lg:hidden navbar bg-base-100 shadow-lg border-b border-base-200 sticky top-0 z-10 shrink-0">
+      <div class="navbar-start flex gap-2">
+        <label for="automechanika-drawer" class="btn btn-ghost btn-square drawer-button" aria-label="open menu">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+          </svg>
+        </label>
+        <a class="btn btn-ghost px-2" href="/diagnostics-pub/diagnostics-platform/" data-automechanika-home-link>
+          
+<span class="brand-logo h-5 w-auto inline-block [&_svg]:w-full [&_svg]:h-full [&_svg]:block" data-brand-logo="autocom" role="img" aria-label="Autocom">
+  <svg width="105" height="22" viewBox="0 0 105 22" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_15275_29243-u1172)">
+<path d="M53.1614 19.4296L49.7086 12.9987H48.8715C48.453 12.9987 48.1391 12.6925 48.1391 12.1821C48.1391 11.7738 48.453 11.3655 48.8715 11.3655H50.2317C50.5456 11.3655 50.7549 11.5696 50.8595 11.7738L53.0568 15.9589V5.3429C53.0568 4.93459 53.2661 4.62836 53.6846 4.62836C53.9985 4.52628 54.417 4.73044 54.5217 5.03667L57.9745 11.4675H58.8116C59.2301 11.4675 59.544 11.7738 59.544 12.2842C59.544 12.7945 59.2301 13.1008 58.8116 13.1008H57.4514C57.1375 13.1008 56.9282 12.8966 56.8236 12.6925L54.6263 8.5073V19.2254C54.6263 19.6337 54.417 19.94 53.9985 20.042C53.6846 19.94 53.2661 19.7358 53.1614 19.4296Z" fill="currentColor"/>
+<path d="M104.745 5.13869C104.954 5.75115 104.954 6.874 104.954 8.30309V20.3482C104.85 20.5524 104.745 20.7565 104.431 20.7565H100.351C100.037 20.7565 99.8274 20.4503 99.8274 20.1441V9.32386C99.8274 7.7927 99.7228 6.874 99.7228 6.56777C99.6181 6.26154 99.4089 6.05738 98.9903 6.05738C98.5718 6.05738 98.3625 6.26154 98.2579 6.56777C98.1533 6.874 98.0486 7.89478 98.0486 9.32386V20.2461C98.0486 20.5524 97.8394 20.7565 97.5255 20.7565H93.4448C93.1309 20.7565 92.9217 20.4503 92.9217 20.2461V9.63009C92.9217 7.89478 92.9217 6.874 92.817 6.56777C92.7124 6.26154 92.5031 6.05738 92.0846 6.05738C91.8753 6.05738 91.6661 6.15946 91.4568 6.36362C91.2476 6.56777 91.2475 6.77193 91.1429 7.07816C91.1429 7.38439 91.1429 7.89478 91.1429 8.71139V20.2461C91.1429 20.5524 90.9337 20.8586 90.6198 20.8586H86.5391C86.2252 20.8586 86.0159 20.6544 86.0159 20.3482V3.70961C86.0159 3.40337 86.3298 3.19922 86.6437 3.19922H90.7244C91.0383 3.19922 91.2476 3.50545 91.2476 3.81168V4.93453C91.6661 4.21999 92.1892 3.81168 92.7124 3.40337C93.2356 2.99506 93.8634 2.89299 94.5958 2.89299C96.0606 2.89299 97.107 3.60753 97.944 4.93453C98.3625 4.21999 98.8857 3.81168 99.4089 3.40337C100.037 2.99506 100.664 2.89299 101.292 2.89299C102.234 2.89299 102.966 3.09714 103.49 3.60753C104.222 4.01584 104.536 4.52622 104.745 5.13869ZM25.957 3.19922C26.2709 3.19922 26.4802 3.40337 26.4802 3.70961V20.2461C26.4802 20.5524 26.1663 20.7565 25.8524 20.7565H21.6671C21.3532 20.7565 21.144 20.4503 21.144 20.1441V19.2254C20.8301 19.7357 20.3069 20.2461 19.7837 20.5524C19.2606 20.8586 18.6328 20.9607 17.9004 20.9607C17.0633 20.9607 16.4355 20.8586 15.9124 20.5524C15.3892 20.2461 14.9707 19.8378 14.7614 19.4295C14.5521 18.9191 14.3429 18.5108 14.3429 17.8984C14.2382 17.388 14.2382 16.3672 14.2382 14.836V3.70961C14.2382 3.40337 14.5521 3.19922 14.866 3.19922H19.0513C19.3652 3.19922 19.5745 3.50545 19.5745 3.70961V15.1423C19.5745 16.4693 19.5745 17.388 19.6791 17.5921C19.7837 17.7963 19.993 18.0004 20.3069 18.0004C20.7254 18.0004 20.9347 17.8984 21.0393 17.5921C21.144 17.2859 21.144 16.4693 21.144 15.0402V3.81168C21.144 3.50545 21.4579 3.19922 21.7718 3.19922H25.957ZM10.5761 3.81168C11.5178 4.42415 12.041 5.24077 12.2502 6.15946C12.4595 7.07816 12.5641 9.01763 12.5641 11.9779V20.3482C12.4595 20.5524 12.2502 20.7565 12.041 20.7565H7.85567C7.54178 20.7565 7.33251 20.5524 7.22788 20.2461V19.2254C6.91398 19.8378 6.49545 20.2461 5.97229 20.6544C5.44913 20.9607 4.82134 21.1648 4.08891 21.1648C3.14722 21.1648 2.31016 20.8586 1.57774 20.3482C0.845313 19.8378 0.426785 18.715 0.426785 16.8776V15.4485C0.426785 14.1215 0.636049 13.2028 1.05458 12.6924C1.47311 12.2841 2.51943 11.7737 4.08891 11.0592C5.86766 10.3446 6.80935 9.93632 6.91398 9.63009C7.12325 9.42594 7.12325 9.01763 7.12325 8.20101C7.12325 7.28231 7.01861 6.66985 6.91398 6.36362C6.80935 6.15946 6.49545 5.95531 6.28619 6.05738C5.86766 6.05738 5.6584 6.15946 5.55376 6.36362C5.44913 6.56777 5.44913 7.18023 5.44913 8.20101V9.52801C5.44913 9.73217 5.23987 9.93632 5.0306 10.0384H0.949946C0.740681 10.0384 0.426785 9.83425 0.426785 9.52801V8.81347C0.426785 7.48647 0.636049 6.36362 0.845313 5.64907C1.26384 4.93453 1.787 4.32207 2.83333 3.70961C3.77502 3.19922 4.92597 2.89299 6.49545 2.89299C8.2742 2.89299 9.63442 3.19922 10.5761 3.81168ZM7.12325 12.4883C6.28619 13.1007 5.76303 13.6111 5.6584 14.0194C5.55376 14.4277 5.44913 15.0402 5.44913 15.8568C5.44913 16.7755 5.55376 17.388 5.6584 17.5921C5.76303 17.8984 5.97229 18.0004 6.39082 18.0004C6.70472 18.0004 6.91398 17.8984 7.01861 17.6942C7.12325 17.49 7.12325 16.9797 7.12325 16.061V12.4883ZM35.2693 18.0004C35.4786 18.1025 35.6878 18.3067 35.6878 18.5108V20.2461C35.6878 20.5524 35.4786 20.7565 35.1647 20.7565H33.4906C32.6535 20.7565 31.7118 20.7565 30.8748 20.5524C29.8284 20.3482 28.9914 19.5316 28.7821 18.6129C28.7821 18.3067 28.6775 17.1838 28.6775 15.3464V6.46569H28.0497C27.7358 6.46569 27.5265 6.15946 27.5265 5.85323V4.21999C27.5265 3.91376 27.7358 3.70961 28.0497 3.60753H28.6775V1.36183C28.6775 1.0556 28.8867 0.85144 29.2006 0.85144H33.4906C33.6998 0.85144 33.9091 1.0556 34.0137 1.36183V3.70961H34.9554C35.2693 3.70961 35.4786 3.91376 35.4786 4.21999V5.95531C35.4786 6.26154 35.2693 6.46569 34.9554 6.46569H34.0137V16.4693C34.1184 17.49 34.7462 17.8984 35.2693 18.0004ZM83.1909 4.83246C83.6094 5.44492 83.9233 5.95531 84.1326 6.56777C84.3418 7.18023 84.4465 8.09893 84.4465 9.32386V13.6111C84.4465 15.1423 84.3418 16.3672 84.2372 17.0817C84.1326 17.7963 83.714 18.5108 83.1909 19.1233C82.6677 19.7357 81.9353 20.2461 81.2029 20.5524C80.3658 20.8586 79.4241 20.9607 78.3778 20.9607C77.3315 20.9607 76.3898 20.8586 75.3435 20.5524C73.8786 20.1441 72.7277 18.9191 72.4138 17.49C72.2045 16.7755 72.0999 15.6527 72.0999 14.1215V9.83425C72.0999 8.20101 72.3091 6.874 72.623 5.95531C72.9369 5.03661 73.6693 4.21999 74.5064 3.70961C75.4481 3.19922 76.599 2.89299 78.0639 2.89299C79.2148 2.89299 80.2612 3.09714 81.0982 3.40337C82.0399 3.81168 82.6677 4.21999 83.1909 4.83246ZM79.0056 8.09893C79.0056 7.18023 79.0056 6.66985 78.901 6.36362C78.7963 6.15946 78.5871 6.05738 78.2732 6.05738C77.9593 6.05738 77.75 6.15946 77.6454 6.36362C77.5407 6.56777 77.4361 7.18023 77.4361 8.09893V16.061C77.4361 16.8776 77.5407 17.388 77.5407 17.6942C77.6454 18.0004 77.8546 18.1025 78.1685 18.1025C78.4824 18.1025 78.6917 18.0004 78.7963 17.7963C78.901 17.5921 78.901 17.0817 78.901 16.2651V8.09893H79.0056ZM70.2165 13.6111C70.5304 13.7132 70.7396 13.9173 70.7396 14.2236C70.7396 15.0402 70.7396 15.9589 70.635 16.7755C70.5304 17.49 70.2165 18.2046 69.6933 18.9191C69.1702 19.6337 68.5424 20.2461 67.7053 20.5524C66.8683 20.9607 65.9266 21.1648 64.671 21.1648C63.4154 21.2669 62.1598 20.9607 61.1135 20.3482C60.2764 19.8378 59.544 19.1233 59.2301 18.2046C58.9162 17.2859 58.7069 16.061 58.7069 14.4277C58.7069 14.1215 58.9162 13.9173 59.2301 13.9173C60.0672 13.7132 60.6949 12.9986 60.6949 12.182C60.6949 11.2633 60.0672 10.5488 59.2301 10.4467C58.9162 10.4467 58.7069 10.2426 58.7069 9.93632V9.22178C58.7069 7.69062 58.8116 6.56777 59.1255 5.85323C59.4394 5.13869 60.0672 4.42415 61.0088 3.81168C62.1598 3.19922 63.4154 2.89299 64.671 2.89299C66.0312 2.89299 67.2868 3.19922 68.2285 3.81168C69.1702 4.32207 69.7979 5.13869 70.2165 6.05738C70.5304 6.874 70.635 7.89478 70.7396 9.32386C70.7396 9.63009 70.5304 9.83424 70.2165 9.93632H66.2405C65.9266 9.93632 65.7173 9.63009 65.7173 9.42594V7.7927C65.7173 7.07816 65.6127 6.56777 65.508 6.36362C65.4034 6.05738 65.1941 5.95531 64.8802 5.95531C64.5663 5.95531 64.3571 6.15946 64.2524 6.36362C64.1478 6.56777 64.1478 7.07816 64.1478 7.89478V16.163C64.1478 16.7755 64.2524 17.2859 64.3571 17.5921C64.4617 17.8984 64.7756 18.1025 65.0895 18.1025C65.4034 18.1025 65.7173 17.8984 65.8219 17.5921C65.9266 17.2859 66.0312 16.6734 66.0312 15.7547V14.1215C66.0312 13.8153 66.2405 13.6111 66.5543 13.509L70.2165 13.6111ZM47.5113 4.83246C48.0344 5.44492 48.3483 5.95531 48.5576 6.56777C48.7669 7.18023 48.8715 8.09893 48.8715 9.32386V9.73217C48.8715 10.0384 48.6622 10.2426 48.3483 10.2426C47.4067 10.3446 46.6742 11.0592 46.6742 11.9779C46.6742 12.8966 47.4067 13.7132 48.3483 13.7132C48.6622 13.7132 48.8715 13.9173 48.8715 14.2236C48.8715 15.4485 48.7669 16.3672 48.6622 16.9797C48.5576 17.6942 48.1391 18.4087 47.6159 19.0212C47.0928 19.6337 46.3603 20.1441 45.6279 20.4503C44.7908 20.7565 43.8492 20.8586 42.8028 20.8586C41.7565 20.8586 40.8148 20.7565 39.7685 20.4503C38.3036 20.042 37.1527 18.8171 36.8388 17.388C36.6295 16.6734 36.5249 15.5506 36.5249 14.0194V9.83425C36.5249 8.20101 36.7342 6.874 37.0481 5.95531C37.362 5.03661 38.0944 4.21999 38.9314 3.70961C39.8731 3.19922 41.0241 2.89299 42.4889 2.89299C43.6399 2.89299 44.6862 3.09714 45.5233 3.40337C46.465 3.81168 47.0928 4.21999 47.5113 4.83246ZM43.4306 8.09893C43.4306 7.18023 43.4306 6.66985 43.326 6.36362C43.2214 6.15946 43.0121 6.05738 42.6982 6.05738C42.3843 6.05738 42.175 6.15946 42.0704 6.36362C41.9658 6.56777 41.8611 7.18023 41.8611 8.09893V16.061C41.8611 16.8776 41.9658 17.388 41.9658 17.6942C42.0704 18.0004 42.2797 18.1025 42.5936 18.1025C42.9075 18.1025 43.1167 18.0004 43.2214 17.7963C43.326 17.5921 43.326 17.0817 43.326 16.2651V8.09893H43.4306Z" fill="currentColor"/>
+</g>
+<defs>
+<clipPath id="clip0_15275_29243-u1172">
+<rect width="105" height="22" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+
+</span>
+<span class="brand-logo h-5 w-auto inline-block [&_svg]:w-full [&_svg]:h-full [&_svg]:block" data-brand-logo="wow" role="img" aria-label="WOW">
+  <svg width="60" height="16" viewBox="0 0 60 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M43.5609 13.7315C43.5726 13.6869 43.5813 13.6527 43.5886 13.6171C43.7375 12.907 43.8821 12.1955 44.0339 11.4869C44.1755 10.8244 44.3156 10.1619 44.4689 9.50239C44.6441 8.74927 44.8382 8.0006 45.0149 7.24748C45.0747 6.99347 45.1068 6.73501 45.1565 6.47802C45.1638 6.44237 45.1959 6.41118 45.2178 6.3785C45.2411 6.41266 45.2674 6.44534 45.2893 6.481C45.2952 6.48991 45.2922 6.50476 45.2952 6.51665C45.447 7.25046 45.5915 7.98575 45.7521 8.71807C45.8324 9.08647 45.9725 9.44297 46.0294 9.81285C46.2236 11.0725 46.3944 12.3366 46.5696 13.5992C46.5842 13.7032 46.6163 13.7374 46.7243 13.7374C48.0469 13.7344 49.368 13.7374 50.6906 13.7418C50.8074 13.7418 50.8468 13.7047 50.876 13.5978C51.8906 9.96882 52.9096 6.34136 53.9271 2.71391C53.9387 2.6738 53.9475 2.63369 53.9577 2.58764C53.9022 2.5817 53.8949 2.57576 53.8482 2.58764L50.8979 2.56982C50.5987 2.57576 50.5184 2.55794 50.4892 2.67529C50.3534 3.21599 50.2133 3.7552 50.0761 4.29442C49.6264 6.06953 49.1199 7.83275 48.8746 9.6539C48.8702 9.6851 48.8381 9.71332 48.8192 9.74303C48.7973 9.71184 48.7608 9.68361 48.7535 9.64945C48.6498 9.0731 48.5812 8.48932 48.4425 7.92188C48.0148 6.16608 47.5593 4.41623 47.117 2.66192C47.0951 2.57725 47.0513 2.56982 46.9798 2.56982C45.8718 2.56982 44.7638 2.56982 43.6543 2.56536C43.5638 2.56536 43.5302 2.59656 43.5069 2.67826C43.3521 3.22193 43.1886 3.76263 43.0354 4.3063C42.5288 6.09032 41.9317 7.85206 41.6179 9.68658C41.6135 9.71629 41.5755 9.74006 41.5536 9.7668C41.5332 9.73412 41.5011 9.70292 41.4953 9.66727C41.3755 8.95575 41.2938 8.23679 41.1361 7.53269C40.7741 5.90464 40.3756 4.28551 39.9946 2.66192C39.9741 2.57576 39.9347 2.55942 39.8544 2.55942C38.799 2.55942 37.7421 2.55942 36.6866 2.55794C36.653 2.55794 36.618 2.56239 36.5786 2.56536C36.5873 2.60844 36.5932 2.63964 36.6019 2.67083C37.5961 6.31017 38.5917 9.94802 39.5829 13.5874C39.6106 13.6899 39.65 13.724 39.761 13.724C40.9829 13.7211 42.2033 13.724 43.4251 13.724C43.4689 13.724 43.501 13.724 43.501 13.724M57.6613 10.7531C57.6613 10.7531 57.597 10.7531 57.5576 10.7531C56.435 10.7531 55.3124 10.7531 54.1884 10.7472C54.0876 10.7472 54.0511 10.7769 54.0278 10.872C53.8365 11.6132 53.6409 12.3544 53.4468 13.0942C53.3928 13.2977 53.3417 13.5012 53.2862 13.7136C53.33 13.7166 53.3621 13.7211 53.3928 13.7211C54.5081 13.7225 55.6219 13.7225 56.7372 13.727C56.8233 13.727 56.854 13.6988 56.8759 13.62C57.1036 12.8134 57.3343 12.0083 57.5649 11.2032C57.6058 11.0591 57.6467 10.9136 57.6934 10.7531" fill="currentColor"/>
+<path d="M27.614 0.00148548C27.8563 0.0252526 28.0986 0.0460488 28.3409 0.0742722C30.1759 0.288176 31.8591 0.88681 33.2985 2.06922C34.8853 3.37344 35.7992 5.05794 36.0561 7.08706C36.2809 8.85622 35.9991 10.5377 35.078 12.0782C33.9189 14.0167 32.2051 15.2169 30.0051 15.7353C29.2387 15.9165 28.4592 16.0146 27.6694 15.9982C27.0125 15.9834 26.3527 16.0012 25.6987 15.9418C23.9381 15.7799 22.3104 15.2421 20.9207 14.1162C19.0726 12.6189 18.0886 10.6789 18.0229 8.30661C17.9631 6.1542 18.6098 4.23946 20.1119 2.65449C21.2141 1.4899 22.5805 0.766489 24.1221 0.356507C24.833 0.167855 25.5571 0.0594178 26.2928 0.0193108C26.341 0.0163399 26.3877 0.00742722 26.4344 0C26.8271 0 27.2198 0 27.614 0M27.1439 12.4406C27.4227 12.4124 27.7045 12.4035 27.9804 12.3544C29.573 12.0767 30.6781 11.2003 31.1978 9.66282C31.5569 8.59924 31.5482 7.51635 31.1818 6.45129C30.7686 5.24808 29.9526 4.41029 28.7555 3.9602C27.9307 3.64974 27.0753 3.57844 26.2096 3.73589C24.7381 4.00476 23.6695 4.80838 23.1338 6.21064C22.6024 7.6025 22.7075 8.98842 23.3819 10.3149C23.8024 11.1423 24.4724 11.7246 25.3337 12.0811C25.9118 12.3203 26.5176 12.4183 27.1424 12.4376" fill="currentColor"/>
+<path d="M0 2.53268C0.0364955 2.52971 0.0715311 2.52525 0.108027 2.52525C1.1591 2.52525 2.20871 2.52823 3.25977 2.52674C3.34298 2.52674 3.38532 2.54159 3.40722 2.63518C3.79553 4.29739 4.20136 5.95663 4.57361 7.62181C4.71959 8.27541 4.79258 8.94386 4.90207 9.60488C4.90791 9.63756 4.94294 9.66579 4.96338 9.69698C4.98382 9.66876 5.0174 9.64202 5.02323 9.61083C5.29476 8.00506 5.79402 6.45871 6.2451 4.90048C6.46262 4.15033 6.68451 3.40018 6.90056 2.64855C6.92684 2.55942 6.96187 2.5312 7.0553 2.5312C8.15454 2.53565 9.25233 2.53565 10.3516 2.53714C10.4187 2.53714 10.4698 2.53714 10.4917 2.62329C10.9151 4.29739 11.3545 5.96852 11.7632 7.64707C11.918 8.28581 12.0026 8.94089 12.1209 9.58854C12.1267 9.61974 12.1588 9.64648 12.1778 9.6747C12.1997 9.64648 12.2347 9.62122 12.2391 9.59151C12.4508 7.99763 12.8683 6.44831 13.2683 4.89602C13.4595 4.15479 13.6508 3.41355 13.8362 2.66934C13.861 2.56982 13.9018 2.54011 14.004 2.54011C15.058 2.54457 16.1135 2.54457 17.1675 2.54605C17.2069 2.54605 17.2463 2.54605 17.3003 2.54605C17.2156 2.85205 17.1353 3.1432 17.0536 3.43286C16.1149 6.78105 15.1734 10.1292 14.2391 13.4789C14.2026 13.6082 14.1544 13.6512 14.0157 13.6512C12.7121 13.6438 11.4085 13.6438 10.1063 13.6453C10.0085 13.6453 9.96326 13.6319 9.9472 13.5161C9.77348 12.2549 9.60268 10.9938 9.40561 9.73709C9.34138 9.32562 9.18956 8.92901 9.09905 8.52051C8.95161 7.85057 8.82314 7.17618 8.68592 6.50476C8.68154 6.48099 8.683 6.45574 8.67278 6.43494C8.65526 6.39781 8.63045 6.36216 8.60855 6.32651C8.58519 6.36067 8.55016 6.39335 8.5414 6.43197C8.50052 6.63102 8.46695 6.83156 8.43191 7.03209C8.28739 7.85503 8.05966 8.65568 7.85236 9.46377C7.59689 10.4516 7.43777 11.4647 7.1896 12.454C7.10202 12.803 7.04216 13.1566 6.98523 13.5116C6.96917 13.6141 6.94144 13.6453 6.84801 13.6453C5.613 13.6408 4.378 13.6394 3.14299 13.6423C3.04664 13.6423 3.02328 13.5992 3.00285 13.5235C2.09776 10.2065 1.19413 6.8984 0.289044 3.58883C0.207294 3.28877 0.125544 2.98871 0.0437945 2.68865C0.0335758 2.65152 0.0145982 2.61587 0 2.58022C0 2.56388 0 2.59061 0 2.59061" fill="currentColor"/>
+<path d="M59.9985 2.62775C59.8861 3.01397 59.7708 3.40018 59.6613 3.7864C59.127 5.66994 58.5913 7.55348 58.0614 9.43703C58.0322 9.54398 57.9913 9.57963 57.876 9.57815C56.7855 9.5722 55.695 9.5722 54.6045 9.57072C54.5607 9.57072 54.5169 9.57072 54.4585 9.57072C54.5417 9.26323 54.622 8.96911 54.7023 8.675C55.2483 6.68302 55.7943 4.69103 56.3373 2.69757C56.3636 2.6025 56.4015 2.57576 56.4994 2.57576C57.6176 2.58022 58.7358 2.58022 59.8555 2.5817C59.9036 2.5817 59.9518 2.58022 60 2.57873C60 2.59507 60 2.58913 60 2.58913" fill="currentColor"/>
+</svg>
+
+</span>
+<span class="brand-logo h-5 w-auto inline-block [&_svg]:w-full [&_svg]:h-full [&_svg]:block" data-brand-logo="wabco" role="img" aria-label="Wabco">
+  <svg width="78" height="32" viewBox="0 0 78 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_16177_856-u1174)">
+<mask id="mask0_16177_856-u1174" style="mask-type:luminance" maskUnits="userSpaceOnUse" x="39" y="0" width="39" height="23">
+<path d="M67.6293 0.190077C67.0468 0.408106 66.6315 0.821803 66.6315 0.821803L57.8988 9.28022L51.7155 3.28721C51.7155 3.28721 50.4005 1.92313 48.324 1.92313C46.2475 1.92313 44.9382 3.2928 44.9382 3.2928L39.5452 8.51991L46.2879 15.0552L48.3355 13.0706L57.9276 22.3676L77.3829 3.52201C77.3829 3.52201 77.9943 2.98532 78.0001 2.10762V2.07966C78.0001 1.85045 77.954 1.59888 77.8501 1.33054C77.3368 0.00559062 75.8775 0 75.8775 0H68.6964C68.6964 0 68.6733 0 68.6329 0C68.483 0 68.0908 0.0167715 67.6293 0.190077Z" fill="white"/>
+</mask>
+<g mask="url(#mask0_16177_856-u1174)">
+<path d="M78 0H39.5566V22.3732H78V0Z" fill="url(#paint0_linear_16177_856-u1174)"/>
+</g>
+<mask id="mask1_16177_856-u1174" style="mask-type:luminance" maskUnits="userSpaceOnUse" x="0" y="0" width="78" height="32">
+<path d="M78 0H0.536377V32H78V0Z" fill="white"/>
+</mask>
+<g mask="url(#mask1_16177_856-u1174)">
+<path d="M64.1281 30.7812H65.6508L64.5549 28.9587C65.1605 28.7128 65.5066 28.2376 65.5066 27.6114C65.5066 26.6778 64.8721 26.0629 63.6205 26.0629H61.2153V30.7812H62.5361V29.1488H63.2052L64.1281 30.7812ZM64.1858 27.6114C64.1858 27.9469 63.9493 28.1873 63.459 28.1873H62.5361V27.0412H63.459C63.9493 27.0412 64.1858 27.2816 64.1858 27.617M58.8504 27.399V28.9084C58.8504 29.5905 58.5043 29.8309 58.0602 29.8309C57.6161 29.8309 57.2642 29.5905 57.2642 28.914V27.399H55.9145V28.9755C55.9145 30.2166 56.624 30.8986 58.0602 30.8986C59.4964 30.8986 60.2001 30.2166 60.2001 28.9811V27.399H58.8504ZM57.2584 26.0685H55.9087V26.9573H57.2584V26.0685ZM58.8504 26.9573H60.2001V26.0685H58.8504V26.9573ZM50.3427 29.1935L49.662 26.0685H48.3181L49.5582 30.7868H50.9829L51.8193 27.7121L52.6498 30.7868H54.0745L55.3146 26.0685H53.9707L53.2901 29.1935L52.4422 26.0685H51.1906L50.3427 29.1935ZM73.5817 27.7568H71.9436V26.0685H70.5939V30.7868H71.9436V28.8246H73.5817V30.7868H74.9372V26.0685H73.5817V27.7568ZM67.2601 27.0971V30.7868H68.6098V27.0971H69.8614V26.0685H66.0027V27.0971H67.2543H67.2601Z" fill="currentColor"/>
+<path d="M46.282 27.4996H39.3027V24.6038H42.204V25.7442H43.3749V24.6038H46.2762V27.4996H46.282ZM43.3807 30.8651V32C45.0476 31.6981 46.282 30.2837 46.282 28.7016V28.6401H39.3027V28.7016C39.3027 30.2837 40.5371 31.6925 42.204 32V30.8651H43.3749H43.3807Z" fill="#ED1D24"/>
+<path d="M27.9341 29.0482C27.9571 29.8364 27.9918 30.7756 26.3537 30.7868H24.7213C23.0602 30.7924 23.1928 29.6128 23.1409 28.9811V27.248C23.1409 26.5716 23.4351 26.0069 24.7271 26.0181H26.2383C27.6572 26.0125 27.9398 26.5716 27.9398 27.248V27.5834H26.0653C26.0653 27.1642 25.973 26.9014 25.6961 26.8679H25.3904C25.1136 26.8679 25.0213 27.1977 25.0213 27.617V28.696C25.0501 29.1208 25.0328 29.8029 25.4366 29.8029H25.6557C25.9787 29.8085 26.0364 29.473 26.0537 29.0482H27.9341Z" fill="#005BAA"/>
+<path d="M7.93659 27.863L7.48092 30.8092H4.7123L3.67407 26.1746H5.46214L6.03893 29.5122L6.75993 26.1746H9.10748L9.82271 29.5122L10.4053 26.1746H12.1933L11.1609 30.8092H8.38649L7.93659 27.863Z" fill="#005BAA"/>
+<path fill-rule="evenodd" clip-rule="evenodd" d="M15.3196 30.1159L15.5041 30.7868H17.4652L15.9886 26.1411H13.3181L11.8992 30.7868H13.7968L13.9641 30.1159H15.3253H15.3196ZM14.2121 29.1935L14.662 27.5387L15.0888 29.1935H14.2121Z" fill="#005BAA"/>
+<path fill-rule="evenodd" clip-rule="evenodd" d="M21.3413 30.7868H17.8113V26.1355H21.797C22.2757 26.1187 22.6506 26.3871 22.6449 27.002V27.4157C22.6449 27.4157 22.6737 28.1816 21.9527 28.2767C22.7198 28.4667 22.7025 29.2997 22.7025 29.2997V29.6743C22.691 30.7253 21.8143 30.8036 21.3471 30.7868M19.7897 27.9301V26.9853H20.3377C20.5107 26.9853 20.6549 27.125 20.6549 27.2927V27.6226C20.6549 27.7903 20.5107 27.9301 20.3377 27.9301H19.7897ZM19.7897 29.7973V28.8189H20.3492C20.5223 28.8189 20.6665 28.9587 20.6665 29.1264V29.4898C20.6665 29.6575 20.5338 29.8141 20.3608 29.7973H19.7897Z" fill="#005BAA"/>
+<path fill-rule="evenodd" clip-rule="evenodd" d="M29.9702 30.7868C28.4128 30.7868 28.4186 29.6519 28.3897 28.9811V27.248C28.3897 26.5716 28.9608 26.0181 29.6587 26.0181H32.2658C32.9637 26.0181 33.5348 26.5716 33.5348 27.248V28.9811C33.529 29.6407 33.5175 30.7812 31.9486 30.7868H29.9702ZM30.7719 29.7861C30.3681 29.7861 30.322 29.1208 30.322 28.6904V27.589C30.322 27.1697 30.4143 26.8343 30.6912 26.8399H31.2391C31.5102 26.8399 31.6429 27.1697 31.6313 27.589V28.6904C31.6313 29.1041 31.6083 29.7805 31.1987 29.7861H30.7719Z" fill="#005BAA"/>
+</g>
+<mask id="mask2_16177_856-u1174" style="mask-type:luminance" maskUnits="userSpaceOnUse" x="0" y="0" width="46" height="21">
+<path d="M19.5073 9.30258L10.7573 0.821803C10.7573 0.821803 10.3709 0.391335 9.93829 0.195667C9.51146 0 9.02118 0 9.02118 0H3.43781C3.28207 0 1.48824 0.0391336 0.761479 1.75542C0.000109076 3.54997 1.40172 4.80224 1.40172 4.80224L16.1388 19.0748C16.1388 19.0748 17.477 20.4724 19.5189 20.4724C21.5607 20.4724 22.8989 19.086 22.8989 19.086L29.0821 13.0874L35.3 19.1139C35.3 19.1139 36.5631 20.4724 38.6915 20.4724C40.8199 20.4724 42.1177 19.1195 42.1177 19.1195L45.4689 15.8658L29.1052 0L19.5073 9.30258Z" fill="white"/>
+</mask>
+<g mask="url(#mask2_16177_856-u1174)">
+<path d="M45.4688 0H0V20.4724H45.4688V0Z" fill="url(#paint1_linear_16177_856-u1174)"/>
+</g>
+</g>
+<defs>
+<linearGradient id="paint0_linear_16177_856-u1174" x1="78.161" y1="11.1592" x2="39.7176" y2="11.1592" gradientUnits="userSpaceOnUse">
+<stop stop-color="#ED1C24"/>
+<stop offset="0.35" stop-color="#ED1C24"/>
+<stop offset="0.43" stop-color="#D8181F"/>
+<stop offset="0.82" stop-color="#790608"/>
+<stop offset="1" stop-color="#540000"/>
+</linearGradient>
+<linearGradient id="paint1_linear_16177_856-u1174" x1="1.53197" y1="12.5417" x2="46.4643" y2="12.5417" gradientUnits="userSpaceOnUse">
+<stop stop-color="#005BAB"/>
+<stop offset="0.35" stop-color="#005BAB"/>
+<stop offset="0.49" stop-color="#004C97"/>
+<stop offset="0.78" stop-color="#002865"/>
+<stop offset="1" stop-color="#000A3C"/>
+</linearGradient>
+<clipPath id="clip0_16177_856-u1174">
+<rect width="78" height="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+
+</span>
+
+        </a>
+      </div>
+      
+      <div class="navbar-end">
+        <button type="button" class="notifications-bell-trigger btn btn-ghost btn-square" aria-label="Notifications" aria-haspopup="dialog">
+          <div class="indicator">
+            <span class="notifications-badge indicator-item badge badge-warning badge-sm hidden">0</span>
+            
+<span class="icon icon-bell w-5 h-5 inline-block shrink-0 [&_svg]:w-full [&_svg]:h-full [&_svg]:block" role="img" aria-hidden="true">
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+  <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+  <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+</svg>
+
+</span>
+
+          </div>
+        </button>
+      </div>
+    </div>
+    <main class="flex-1 min-h-0 flex flex-col w-full">
+      
+      <div class="w-full flex-1 min-h-0 lg:overflow-auto launchpad-main-bg">
+        <div class="container mx-auto px-4 py-6 max-w-[1200px] w-full flex flex-col min-h-0">
+          
+
+
+
+
+
+
+
+<dialog id="dtc-detail-dialog" class="modal dtc-detail-modal" aria-labelledby="dtc-detail-title">
+  <div class="modal-box max-w-2xl">
+    <div class="flex items-start justify-between gap-3 mb-1">
+      <div class="min-w-0">
+        <h2 id="dtc-detail-title" class="text-lg font-semibold text-base-content flex flex-wrap items-baseline gap-2">
+          <span data-dtc-code></span>
+          <span data-dtc-code-title class="font-normal text-base text-base-content/70"></span>
+        </h2>
+        <div class="flex flex-wrap gap-1 mt-2" data-dtc-tags></div>
+      </div>
+      <form method="dialog">
+        <button type="submit" class="btn btn-sm btn-circle btn-ghost shrink-0" aria-label="Close">
+          
+<span class="icon icon-close w-4 h-4 inline-block shrink-0 [&_svg]:w-full [&_svg]:h-full [&_svg]:block" role="img" aria-hidden="true">
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true">
+  <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+</svg>
+
+</span>
+
+        </button>
+      </form>
+    </div>
+
+    
+    <dl class="grid grid-cols-1 sm:grid-cols-3 gap-x-4 gap-y-1 mt-3 text-sm">
+      <div class="hidden" data-dtc-ecu-row><dt class="text-base-content/60">ECU</dt><dd class="font-medium" data-dtc-ecu></dd></div>
+      <div class="hidden" data-dtc-category-row><dt class="text-base-content/60">System Category</dt><dd class="font-medium" data-dtc-category></dd></div>
+      <div class="hidden" data-dtc-status-row><dt class="text-base-content/60">Status</dt><dd><span class="badge badge-sm" data-dtc-status></span></dd></div>
+    </dl>
+    <p class="text-sm text-base-content/80 mt-2 hidden" data-dtc-details></p>
+    <div class="alert alert-soft alert-info text-xs mt-2 hidden py-2" data-dtc-status-note>
+      
+<span class="icon icon-info w-4 h-4 shrink-0 inline-block shrink-0 [&_svg]:w-full [&_svg]:h-full [&_svg]:block" role="img" aria-hidden="true">
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+  <circle cx="12" cy="12" r="10"/>
+  <path d="M12 16v-4M12 8h.01"/>
+</svg>
+
+</span>
+
+      <span data-dtc-status-note-text></span>
+    </div>
+
+    <div class="flex flex-col gap-2 mt-4">
+      <div class="dtc-accordion-section border border-base-300 rounded-box overflow-hidden" data-accordion="freeze-frame">
+        <button type="button" class="w-full flex items-center justify-between px-3 py-2.5 text-sm font-medium text-base-content cursor-pointer" data-accordion-toggle>
+          Freeze-Frame
+          
+<span class="icon icon-chevron-down w-4 h-4 shrink-0 transition-transform inline-block shrink-0 [&_svg]:w-full [&_svg]:h-full [&_svg]:block" role="img" aria-hidden="true">
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+  <path d="m6 9 6 6 6-6"/>
+</svg>
+
+</span>
+
+        </button>
+        <div class="hidden px-3 pb-3" data-accordion-content>
+          <table class="table table-sm">
+            <tbody data-dtc-freeze-frame-body></tbody>
+          </table>
+          <div class="hidden mt-3" data-dtc-additional-info-wrap>
+            <p class="text-xs font-medium text-base-content/60 mb-1">Additional Info</p>
+            <table class="table table-sm">
+              <tbody data-dtc-additional-info-body></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="dtc-accordion-section border border-base-300 rounded-box overflow-hidden" data-accordion="ai-assist">
+        <button type="button" class="w-full flex items-center justify-between px-3 py-2.5 text-sm font-medium text-base-content cursor-pointer" data-accordion-toggle>
+          <span class="flex items-center gap-1.5">
+            
+<span class="icon icon-sparkle w-4 h-4 shrink-0 text-primary inline-block shrink-0 [&_svg]:w-full [&_svg]:h-full [&_svg]:block" role="img" aria-hidden="true">
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+  <path d="M12 2c.44 3.07 1.1 5.24 2.03 6.5C15.06 9.86 16.87 10.7 19.5 11c-2.63.3-4.44 1.14-5.47 2.5-.93 1.26-1.59 3.43-2.03 6.5-.44-3.07-1.1-5.24-2.03-6.5C8.94 12.14 7.13 11.3 4.5 11c2.63-.3 4.44-1.14 5.47-2.5C10.9 7.24 11.56 5.07 12 2Z"/>
+</svg>
+
+</span>
+
+            AI Assist
+          </span>
+          
+<span class="icon icon-chevron-down w-4 h-4 shrink-0 transition-transform inline-block shrink-0 [&_svg]:w-full [&_svg]:h-full [&_svg]:block" role="img" aria-hidden="true">
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+  <path d="m6 9 6 6 6-6"/>
+</svg>
+
+</span>
+
+        </button>
+        <div class="hidden px-3 pb-3 flex flex-col gap-4" data-accordion-content>
+          <p class="text-sm text-base-content/80 hidden" data-dtc-summary></p>
+
+          <div>
+            <div class="flex items-center justify-between mb-2">
+              <p class="text-xs font-medium text-base-content/60">Possible causes</p>
+              <button type="button" class="hidden btn btn-ghost btn-xs btn-circle" data-dtc-causes-info aria-label="Show detailed cause breakdown">
+                
+<span class="icon icon-info w-4 h-4 inline-block shrink-0 [&_svg]:w-full [&_svg]:h-full [&_svg]:block" role="img" aria-hidden="true">
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+  <circle cx="12" cy="12" r="10"/>
+  <path d="M12 16v-4M12 8h.01"/>
+</svg>
+
+</span>
+
+              </button>
+            </div>
+            <div class="grid grid-cols-3 gap-2" data-dtc-causes-list></div>
+            <div class="hidden mt-3 border border-base-300 rounded-box overflow-hidden" data-dtc-causes-breakdown>
+              <div class="px-3 py-1.5 bg-base-200 flex items-center justify-between text-xs font-medium text-base-content/70">
+                <span data-dtc-causes-breakdown-title>Cause probability</span>
+                <span>%</span>
+              </div>
+              <div data-dtc-causes-breakdown-list></div>
+            </div>
+          </div>
+
+          <div class="hidden border-t border-base-200 pt-4" data-dtc-component-test>
+            <p class="text-xs font-medium text-base-content/60 mb-2">Component testing</p>
+            <h3 class="text-sm font-semibold text-base-content" data-dtc-test-title></h3>
+            <p class="text-xs text-base-content/60 mb-3" data-dtc-test-subtitle></p>
+            <ol class="list-decimal list-inside text-sm text-base-content/80 flex flex-col gap-0.5 mb-4" data-dtc-test-steps></ol>
+            <div class="flex justify-center mb-4">
+              <div class="w-48" data-dtc-connector-diagram></div>
+            </div>
+            <div class="alert alert-soft text-sm mb-3">
+              <span><span class="font-medium">Expected:</span> <span data-dtc-test-range></span> — otherwise <span data-dtc-test-fail></span></span>
+            </div>
+            <table class="table table-sm">
+              <thead><tr><th>Pin</th><th>Signal</th></tr></thead>
+              <tbody data-dtc-test-pinout-body></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      
+      <div class="hidden dtc-accordion-section border border-base-300 rounded-box overflow-hidden" data-accordion="reference-values" data-dtc-reference-values-wrap>
+        <button type="button" class="w-full flex items-center justify-between px-3 py-2.5 text-sm font-medium text-base-content cursor-pointer" data-accordion-toggle>
+          Reference Values
+          
+<span class="icon icon-chevron-down w-4 h-4 shrink-0 transition-transform inline-block shrink-0 [&_svg]:w-full [&_svg]:h-full [&_svg]:block" role="img" aria-hidden="true">
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+  <path d="m6 9 6 6 6-6"/>
+</svg>
+
+</span>
+
+        </button>
+        <div class="hidden px-3 pb-3 flex flex-col gap-2" data-accordion-content data-dtc-reference-values-list></div>
+      </div>
+
+      
+      <div class="hidden dtc-accordion-section border border-base-300 rounded-box overflow-hidden" data-accordion="notes" data-dtc-notes-wrap>
+        <button type="button" class="w-full flex items-center justify-between px-3 py-2.5 text-sm font-medium text-base-content cursor-pointer" data-accordion-toggle>
+          Notes
+          
+<span class="icon icon-chevron-down w-4 h-4 shrink-0 transition-transform inline-block shrink-0 [&_svg]:w-full [&_svg]:h-full [&_svg]:block" role="img" aria-hidden="true">
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+  <path d="m6 9 6 6 6-6"/>
+</svg>
+
+</span>
+
+        </button>
+        <div class="hidden px-3 pb-3 flex flex-col gap-3" data-accordion-content>
+          <div class="flex items-center justify-end">
+            <span class="text-xs text-base-content/60">Sort: Most upvotes</span>
+          </div>
+          <div class="flex flex-col gap-3" data-dtc-notes-list></div>
+          <div class="flex items-center justify-between pt-1 border-t border-base-200">
+            <button type="button" class="btn btn-ghost btn-xs" data-dtc-notes-show-more>Show more</button>
+            <button type="button" class="btn btn-primary btn-xs" data-dtc-notes-add>Add Note</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <form method="dialog" class="modal-backdrop" aria-label="Close">
+    <button type="submit" class="cursor-default w-full h-full min-h-screen" aria-label="Close"></button>
+  </form>
+</dialog>
+
+
+
+<dialog id="data-lists-dialog" class="modal data-lists-modal" aria-labelledby="data-lists-title">
+  <div class="modal-box max-w-4xl">
+    <div class="flex items-center justify-between gap-3 mb-4">
+      <h2 id="data-lists-title" class="text-lg font-semibold text-base-content flex items-center gap-2">
+        
+<span class="icon icon-chart-line w-5 h-5 text-primary shrink-0 inline-block shrink-0 [&_svg]:w-full [&_svg]:h-full [&_svg]:block" role="img" aria-hidden="true">
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+  <path d="M3 3v16a2 2 0 0 0 2 2h16"/>
+  <path d="m19 9-5 5-4-4-4 4"/>
+</svg>
+
+</span>
+
+        Data Lists
+      </h2>
+      <form method="dialog">
+        <button type="submit" class="btn btn-sm btn-circle btn-ghost shrink-0" aria-label="Close">
+          
+<span class="icon icon-close w-4 h-4 inline-block shrink-0 [&_svg]:w-full [&_svg]:h-full [&_svg]:block" role="img" aria-hidden="true">
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true">
+  <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+</svg>
+
+</span>
+
+        </button>
+      </form>
+    </div>
+
+    <div data-data-lists-pick-view>
+      <label class="input input-bordered flex items-center gap-2 w-full mb-3" data-clearable-input>
+        
+<span class="icon icon-search w-4 h-4 shrink-0 opacity-70 inline-block shrink-0 [&_svg]:w-full [&_svg]:h-full [&_svg]:block" role="img" aria-hidden="true">
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true">
+  <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+</svg>
+
+</span>
+
+        <input type="text" class="grow" placeholder="Search parameters…" data-data-lists-search />
+        <button type="button" data-clear-input class="hidden shrink-0 text-base-content/50 hover:text-base-content" aria-label="Clear search">
+          
+<span class="icon icon-close w-4 h-4 inline-block shrink-0 [&_svg]:w-full [&_svg]:h-full [&_svg]:block" role="img" aria-hidden="true">
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true">
+  <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+</svg>
+
+</span>
+
+        </button>
+      </label>
+      <p class="text-xs text-base-content/60 mb-2">Select up to 8 to watch live — <span data-data-lists-count>0</span>/8 selected.</p>
+      <div class="flex flex-col max-h-80 overflow-auto border border-base-300 rounded-box" data-data-lists-checklist></div>
+      <div class="modal-action mt-4">
+        <button type="button" class="btn btn-primary btn-block" disabled data-data-lists-show-btn>Show</button>
+      </div>
+    </div>
+
+    <div class="hidden" data-data-lists-live-view>
+      <div class="flex items-center justify-between gap-3 mb-3">
+        <button type="button" class="btn btn-ghost btn-sm gap-1.5" data-data-lists-back-btn>
+          
+<span class="icon icon-arrow-left w-4 h-4 inline-block shrink-0 [&_svg]:w-full [&_svg]:h-full [&_svg]:block" role="img" aria-hidden="true">
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M19 12H5M5 12L12 19M5 12L12 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
+
+</span>
+
+          Back to selection
+        </button>
+        
+        <button type="button" class="btn btn-primary btn-sm gap-1.5" data-data-lists-save-btn>
+          
+<span class="icon icon-chart-line w-4 h-4 inline-block shrink-0 [&_svg]:w-full [&_svg]:h-full [&_svg]:block" role="img" aria-hidden="true">
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+  <path d="M3 3v16a2 2 0 0 0 2 2h16"/>
+  <path d="m19 9-5 5-4-4-4 4"/>
+</svg>
+
+</span>
+
+          Save Snapshot
+        </button>
+      </div>
+      <div class="grid grid-cols-2 lg:grid-cols-4 gap-3" data-data-lists-tiles></div>
+    </div>
+  </div>
+  <form method="dialog" class="modal-backdrop" aria-label="Close">
+    <button type="submit" class="cursor-default w-full h-full min-h-screen" aria-label="Close"></button>
+  </form>
+</dialog>
+
+
+
+<dialog id="adas-calibration-dialog" class="modal" aria-labelledby="adas-calibration-title">
+  <div class="modal-box max-w-xl">
+    
+    <div id="adas-calibration-state-config" class="adas-calibration-state hidden" data-state="config">
+      <div class="flex items-start justify-between gap-3 mb-3">
+        <h2 class="text-lg font-semibold text-base-content leading-snug">Set up your calibration rig</h2>
+        <form method="dialog">
+          <button type="submit" class="btn btn-sm btn-circle btn-ghost shrink-0" aria-label="Close">
+            
+<span class="icon icon-close w-4 h-4 inline-block shrink-0 [&_svg]:w-full [&_svg]:h-full [&_svg]:block" role="img" aria-hidden="true">
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true">
+  <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+</svg>
+
+</span>
+
+          </button>
+        </form>
+      </div>
+      <p class="text-sm text-base-content/70 mb-3">Add the rig's type and serial number for accurate calibration guidance and reporting. This is remembered for the rest of this session.</p>
+      <div class="flex flex-col sm:flex-row gap-3">
+        <fieldset class="fieldset w-full">
+          <legend class="fieldset-legend">Type</legend>
+          <select class="select select-bordered select-sm w-full" id="adas-calibration-rig-type-input" aria-label="ADAS rig type">
+            <option value="ACS Cars">ACS Cars</option>
+            <option value="ACS Trucks">ACS Trucks</option>
+            <option value="Universal Frame">Universal Frame</option>
+          </select>
+        </fieldset>
+        <fieldset class="fieldset w-full">
+          <legend class="fieldset-legend">Serial number</legend>
+          <input type="text" class="input input-bordered input-sm w-full" id="adas-calibration-rig-serial-input" placeholder="e.g. ACS002-10-1017" aria-label="ADAS rig serial number" />
+        </fieldset>
+      </div>
+      <div class="modal-action justify-between mt-6">
+        <button type="button" class="btn btn-ghost" data-adas-calibration-cancel>Cancel</button>
+        <button type="button" class="btn btn-primary" id="adas-calibration-config-continue" disabled>Continue</button>
+      </div>
+    </div>
+
+    
+    <div id="adas-calibration-state-align" class="adas-calibration-state hidden" data-state="align">
+      <div class="flex items-start justify-between gap-3 mb-1">
+        <h2 class="text-lg font-semibold text-base-content leading-snug">Rig alignment</h2>
+        <form method="dialog">
+          <button type="submit" class="btn btn-sm btn-circle btn-ghost shrink-0" aria-label="Close">
+            
+<span class="icon icon-close w-4 h-4 inline-block shrink-0 [&_svg]:w-full [&_svg]:h-full [&_svg]:block" role="img" aria-hidden="true">
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true">
+  <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+</svg>
+
+</span>
+
+          </button>
+        </form>
+      </div>
+      <p class="text-sm text-base-content/70 mb-1">Place the distance lasers on each side of the rig pointing toward the wheel clamps then click connect.</p>
+      <p class="text-xs text-base-content/60 mb-5 flex items-center gap-2">
+        <span>Rig <span class="font-medium text-base-content" id="adas-calibration-align-rig-label"></span></span>
+        <button type="button" class="link link-primary" data-adas-calibration-change-rig>Change rig</button>
+      </p>
+      <div class="flex items-center justify-center gap-6 sm:gap-10 mb-6 py-2">
+        <div class="flex flex-col items-center gap-2 w-24 shrink-0">
+          <span class="text-xs text-base-content/60 text-center">Left Sensor</span>
+          <span class="text-xl font-bold text-base-content" data-adas-rig-sensor-value="left">—</span>
+          <button type="button" class="btn btn-circle btn-outline btn-sm" data-adas-rig-connect="left" aria-label="Connect left sensor">
+            
+<span class="icon icon-bluetooth w-4 h-4 inline-block shrink-0 [&_svg]:w-full [&_svg]:h-full [&_svg]:block" role="img" aria-hidden="true">
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M6.5 6.5L17.5 17.5L12 23V1L17.5 6.5L6.5 17.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
+
+</span>
+
+          </button>
+        </div>
+        <div class="flex flex-col items-center justify-center text-base-content/40 shrink-0 py-1" data-adas-rig-vehicle-diagram aria-hidden="true">
+          <div class="h-44 [&_svg]:h-full [&_svg]:w-auto" data-adas-rig-diagram="car"><svg viewBox="0 0 82 206" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_71388_6940-u10)">
+<path fill-rule="evenodd" clip-rule="evenodd" d="M58.1416 16.4492L58.1416 17.3619C58.2466 17.3619 58.3493 17.3593 58.4505 17.3568C58.6686 17.3513 58.8791 17.346 59.0872 17.3672C59.5862 17.4178 59.8321 17.7215 59.8064 18.1974C59.7833 18.6324 59.4894 18.9068 59.0135 18.9094C57.8744 18.9156 56.7344 18.9156 55.5953 18.9094C55.1256 18.9068 54.8326 18.6351 54.7918 18.1965C54.7518 17.7641 55.0022 17.4463 55.4763 17.3832C55.7041 17.3529 55.9348 17.3458 56.1741 17.3384C56.2854 17.3349 56.3986 17.3314 56.5142 17.3255L56.5142 16.4607L42.0316 16.4607C42.0129 16.5941 42.0117 16.7428 42.0105 16.8937C42.006 17.4387 42.0012 18.0126 41.1731 17.9994C40.4093 17.9872 40.3982 17.4551 40.3871 16.9259C40.3837 16.7618 40.3803 16.598 40.3545 16.4501L25.9136 16.4501L25.9136 17.3877C26.0123 17.3877 26.1088 17.3858 26.2036 17.384C26.4105 17.3801 26.6095 17.3763 26.8068 17.3921C27.3066 17.4321 27.5916 17.741 27.5721 18.1858C27.5534 18.6191 27.2631 18.9077 26.7837 18.913C25.6295 18.9245 24.4753 18.9236 23.3211 18.9112C22.8647 18.9059 22.5983 18.6298 22.5761 18.2009C22.5522 17.7464 22.799 17.4392 23.266 17.3974C23.4855 17.378 23.707 17.3827 23.9381 17.3876C24.0444 17.3898 24.1528 17.3921 24.264 17.3921L24.264 16.451C24.1854 16.451 24.1063 16.4521 24.0269 16.4532C23.8484 16.4556 23.6682 16.4581 23.4889 16.4483C22.9153 16.4181 22.5939 16.0914 22.5895 15.517C22.5838 14.718 22.5848 13.919 22.5859 13.0952C22.5864 12.76 22.5868 12.4207 22.5868 12.0757L22.0035 12.0757L2.07214 12.0757C1.30149 12.0739 1.09639 11.8777 1.0955 11.115C1.09328 9.96834 1.09217 9.68733 1.09162 9.40633C1.09106 9.12533 1.09106 8.84432 1.09106 7.69766C1.09106 6.9865 1.33522 6.74766 2.05172 6.74766L21.9831 6.74766L22.401 6.74766L22.401 3.79659C22.401 3.75219 22.4006 3.7078 22.4002 3.66341L22.4002 3.66295C22.3995 3.57432 22.3987 3.48569 22.401 3.39705C22.4161 2.83416 22.7491 2.495 23.3155 2.4728C23.4752 2.46675 23.6358 2.46812 23.8101 2.46961C23.8915 2.4703 23.976 2.47103 24.0649 2.47103L24.0666 2.47191L24.0666 1.5592C23.9617 1.5592 23.859 1.56179 23.7578 1.56433C23.5397 1.56981 23.3292 1.57511 23.1211 1.55388C22.6221 1.50327 22.3762 1.19962 22.4019 0.723737C22.425 0.28869 22.7189 0.0143447 23.1948 0.0116812C24.3339 0.00546621 25.4739 0.00546619 26.613 0.0116811C27.0827 0.0143447 27.3757 0.286027 27.4165 0.724625C27.4565 1.15701 27.2061 1.47486 26.732 1.5379C26.5042 1.56819 26.2735 1.57533 26.0342 1.58273C25.9229 1.58618 25.8097 1.58968 25.6941 1.59561L25.6941 2.46037L40.1767 2.46037C40.1954 2.32698 40.1966 2.1783 40.1978 2.02742C40.2023 1.48238 40.2071 0.908516 41.0352 0.921727C41.799 0.933926 41.8101 1.46602 41.8211 1.9952C41.8246 2.15928 41.828 2.32309 41.8538 2.47103L56.2947 2.47103L56.2947 1.53346C56.196 1.53346 56.0995 1.5353 56.0047 1.5371C55.7978 1.54105 55.5988 1.54485 55.4015 1.52902C54.9017 1.48906 54.6167 1.18009 54.6362 0.735279C54.6549 0.302008 54.9452 0.0134565 55.4246 0.0081294C56.5788 -0.00341266 57.733 -0.00252483 58.8872 0.00990506C59.3436 0.0152322 59.6099 0.291354 59.6321 0.720185C59.6561 1.17476 59.4093 1.48196 58.9423 1.52369C58.7228 1.54314 58.5013 1.53845 58.2702 1.53356C58.1639 1.53131 58.0555 1.52902 57.9443 1.52902L57.9443 2.47014C58.0229 2.47014 58.102 2.46904 58.1814 2.46794C58.3598 2.46547 58.5401 2.46297 58.7194 2.4728C59.293 2.50299 59.6144 2.82972 59.6188 3.40416L59.6215 6.74766L79.8114 6.74766C80.662 6.74766 80.8564 6.9421 80.8564 7.78112L80.8564 11.0662C80.8564 11.8155 80.5945 12.0748 79.8434 12.0748L60.3116 12.0748L59.8073 12.0748L59.8073 15.1245C59.8073 15.1689 59.8077 15.2133 59.808 15.2577L59.808 15.2582C59.8088 15.3468 59.8096 15.4354 59.8073 15.5241C59.7922 16.087 59.4592 16.4261 58.8928 16.4483C58.7331 16.4544 58.5725 16.453 58.3983 16.4515C58.3168 16.4508 58.2323 16.4501 58.1434 16.4501L58.1416 16.4492ZM2.7034 8.37687L22.5522 8.37687L79.2485 8.37686L79.2485 10.45L2.7034 10.45L2.7034 8.37687ZM24.1672 12.1014L40.3758 12.1014L40.3758 14.8076L24.1672 14.8076L24.1672 12.1014ZM58.1745 14.8005L41.9739 14.8005L41.9739 12.1103L58.1745 12.1103L58.1745 14.8005ZM41.8325 4.11355L58.0411 4.11355L58.0411 6.74766L41.8325 6.74766L41.8325 4.11355ZM24.0338 4.12065L40.2344 4.12065L40.2344 6.74766L24.0338 6.74766L24.0338 4.12065Z" fill="currentColor"/>
+</g>
+<path d="M80 93C80 93.5523 80.4477 94 81 94C81.5523 94 82 93.5523 82 93L81 93L80 93ZM81 8L80 8L80 9.25L81 9.25L82 9.25L82 8L81 8ZM81 11.75L80 11.75L80 14.25L81 14.25L82 14.25L82 11.75L81 11.75ZM81 16.75L80 16.75L80 19.25L81 19.25L82 19.25L82 16.75L81 16.75ZM81 21.75L80 21.75L80 24.25L81 24.25L82 24.25L82 21.75L81 21.75ZM81 26.75L80 26.75L80 29.25L81 29.25L82 29.25L82 26.75L81 26.75ZM81 31.75L80 31.75L80 34.25L81 34.25L82 34.25L82 31.75L81 31.75ZM81 36.75L80 36.75L80 39.25L81 39.25L82 39.25L82 36.75L81 36.75ZM81 41.75L80 41.75L80 44.25L81 44.25L82 44.25L82 41.75L81 41.75ZM81 46.75L80 46.75L80 49.25L81 49.25L82 49.25L82 46.75L81 46.75ZM81 51.75L80 51.75L80 54.25L81 54.25L82 54.25L82 51.75L81 51.75ZM81 56.75L80 56.75L80 59.25L81 59.25L82 59.25L82 56.75L81 56.75ZM81 61.75L80 61.75L80 64.25L81 64.25L82 64.25L82 61.75L81 61.75ZM81 66.75L80 66.75L80 69.25L81 69.25L82 69.25L82 66.75L81 66.75ZM81 71.75L80 71.75L80 74.25L81 74.25L82 74.25L82 71.75L81 71.75ZM81 76.75L80 76.75L80 79.25L81 79.25L82 79.25L82 76.75L81 76.75ZM81 81.75L80 81.75L80 84.25L81 84.25L82 84.25L82 81.75L81 81.75ZM81 86.75L80 86.75L80 89.25L81 89.25L82 89.25L82 86.75L81 86.75ZM81 91.75L80 91.75L80 93L81 93L82 93L82 91.75L81 91.75Z" fill="currentColor"/>
+<path d="M-3.71547e-06 93C-3.73961e-06 93.5523 0.447711 94 0.999996 94C1.55228 94 2 93.5523 2 93L0.999996 93L-3.71547e-06 93ZM1 8L0 8L-5.46392e-08 9.25L1 9.25L2 9.25L2 8L1 8ZM1 11.75L-1.63918e-07 11.75L-2.73196e-07 14.25L1 14.25L2 14.25L2 11.75L1 11.75ZM1 16.75L-3.82475e-07 16.75L-4.91753e-07 19.25L1 19.25L2 19.25L2 16.75L1 16.75ZM0.999999 21.75L-6.01032e-07 21.75L-7.1031e-07 24.25L0.999999 24.25L2 24.25L2 21.75L0.999999 21.75ZM0.999999 26.75L-8.19589e-07 26.75L-9.28867e-07 29.25L0.999999 29.25L2 29.25L2 26.75L0.999999 26.75ZM0.999999 31.75L-1.03815e-06 31.75L-1.14742e-06 34.25L0.999999 34.25L2 34.25L2 31.75L0.999999 31.75ZM0.999999 36.75L-1.2567e-06 36.75L-1.36598e-06 39.25L0.999999 39.25L2 39.25L2 36.75L0.999999 36.75ZM0.999999 41.75L-1.47526e-06 41.75L-1.58454e-06 44.25L0.999998 44.25L2 44.25L2 41.75L0.999999 41.75ZM0.999998 46.75L-1.69382e-06 46.75L-1.80309e-06 49.25L0.999998 49.25L2 49.25L2 46.75L0.999998 46.75ZM0.999998 51.75L-1.91237e-06 51.75L-2.02165e-06 54.25L0.999998 54.25L2 54.25L2 51.75L0.999998 51.75ZM0.999998 56.75L-2.13093e-06 56.75L-2.24021e-06 59.25L0.999998 59.25L2 59.25L2 56.75L0.999998 56.75ZM0.999998 61.75L-2.34949e-06 61.75L-2.45877e-06 64.25L0.999998 64.25L2 64.25L2 61.75L0.999998 61.75ZM0.999997 66.75L-2.56804e-06 66.75L-2.67732e-06 69.25L0.999997 69.25L2 69.25L2 66.75L0.999997 66.75ZM0.999997 71.75L-2.7866e-06 71.75L-2.89588e-06 74.25L0.999997 74.25L2 74.25L2 71.75L0.999997 71.75ZM0.999997 76.75L-3.00516e-06 76.75L-3.11444e-06 79.25L0.999997 79.25L2 79.25L2 76.75L0.999997 76.75ZM0.999997 81.75L-3.22371e-06 81.75L-3.33299e-06 84.25L0.999997 84.25L2 84.25L2 81.75L0.999997 81.75ZM0.999997 86.75L-3.44227e-06 86.75L-3.55155e-06 89.25L0.999996 89.25L2 89.25L2 86.75L0.999997 86.75ZM0.999996 91.75L-3.66083e-06 91.75L-3.71547e-06 93L0.999996 93L2 93L2 91.75L0.999996 91.75Z" fill="currentColor"/>
+<path d="M74 91.625C73.5858 91.625 73.25 91.9608 73.25 92.375C73.25 92.7892 73.5858 93.125 74 93.125V92.375V91.625ZM81 93.125C81.4142 93.125 81.75 92.7892 81.75 92.375C81.75 91.9608 81.4142 91.625 81 91.625V92.375V93.125ZM1 91.625C0.585786 91.625 0.25 91.9608 0.25 92.375C0.25 92.7892 0.585786 93.125 1 93.125V92.375V91.625ZM8 93.125C8.41421 93.125 8.75 92.7892 8.75 92.375C8.75 91.9608 8.41421 91.625 8 91.625V92.375V93.125ZM19.1961 123.802L18.4632 123.961V123.961L19.1961 123.802ZM23.7443 126.956L23.6434 126.213L23.7443 126.956ZM62.8039 123.802L63.5368 123.961V123.961L62.8039 123.802ZM58.2556 126.956L58.3566 126.213L58.2556 126.956ZM66.1762 108.29L65.4433 108.13V108.13L66.1762 108.29ZM63.2095 103.691L63.0681 104.428L63.2095 103.691ZM15.8238 108.29L16.5567 108.13V108.13L15.8238 108.29ZM18.7905 103.691L18.9319 104.428L18.7905 103.691ZM13.607 194.06C13.3638 193.724 12.8948 193.65 12.5595 193.893C12.2243 194.136 12.1497 194.605 12.393 194.94L13 194.5L13.607 194.06ZM25.051 201.222C25.4643 201.194 25.7764 200.836 25.7483 200.423C25.7201 200.009 25.3623 199.697 24.949 199.725L25 200.474L25.051 201.222ZM12.393 84.0595C12.1497 84.3948 12.2243 84.8638 12.5595 85.107C12.8948 85.3503 13.3638 85.2757 13.607 84.9405L13 84.5L12.393 84.0595ZM24.949 79.2746C25.3623 79.3028 25.7201 78.9906 25.7483 78.5773C25.7764 78.1641 25.4643 77.8062 25.051 77.7781L25 78.5263L24.949 79.2746ZM70.607 194.94C70.8503 194.605 70.7757 194.136 70.4405 193.893C70.1052 193.65 69.6362 193.724 69.393 194.06L70 194.5L70.607 194.94ZM58.051 199.725C57.6377 199.697 57.2799 200.009 57.2517 200.423C57.2236 200.836 57.5358 201.194 57.949 201.222L58 200.474L58.051 199.725ZM68.393 84.9405C68.6362 85.2757 69.1052 85.3503 69.4405 85.107C69.7757 84.8638 69.8503 84.3948 69.607 84.0595L69 84.5L68.393 84.9405ZM56.949 77.7781C56.5358 77.8062 56.2236 78.1641 56.2517 78.5773C56.2799 78.9906 56.6377 79.3028 57.051 79.2746L57 78.5263L56.949 77.7781ZM11.3823 117.5L12.0808 117.227C11.9515 116.896 11.6075 116.701 11.257 116.761C10.9066 116.82 10.6459 117.117 10.6328 117.472L11.3823 117.5ZM18 134.5H18.7501L18.7499 134.486L18 134.5ZM15.1639 175.5L14.8133 176.163C14.9984 176.261 15.2159 176.277 15.4133 176.207L15.1639 175.5ZM17.7315 148.22C18.1291 148.336 18.5456 148.108 18.6617 147.71C18.7779 147.313 18.5498 146.896 18.1522 146.78L17.9418 147.5L17.7315 148.22ZM70.6177 117.5L71.3672 117.472C71.3541 117.117 71.0934 116.82 70.743 116.761C70.3925 116.701 70.0486 116.896 69.9192 117.227L70.6177 117.5ZM64 134.5L63.25 134.486V134.5H64ZM66.8361 175.5L66.5867 176.207C66.7841 176.277 67.0016 176.261 67.1867 176.163L66.8361 175.5ZM63.8478 146.78C63.4502 146.896 63.2221 147.313 63.3383 147.71C63.4544 148.108 63.8709 148.336 64.2685 148.22L64.0582 147.5L63.8478 146.78ZM41 169.038V168.288V169.038ZM59.6191 171.054L60.3485 170.88V170.88L59.6191 171.054ZM55.1484 167.974L55.0581 167.23L55.1484 167.974ZM22.3809 171.054L21.6515 170.88V170.88L22.3809 171.054ZM26.8516 167.974L26.9419 167.23L26.8516 167.974ZM19.9408 181.258L20.6702 181.432V181.432L19.9408 181.258ZM22.9707 185.945L23.0943 185.205V185.205L22.9707 185.945ZM62.0592 181.258L61.3298 181.432V181.432L62.0592 181.258ZM59.0293 185.945L59.1529 186.685L59.0293 185.945ZM3.96713 119.658L4.16124 120.382H4.16124L3.96713 119.658ZM6.86491 118.881L6.67079 118.157H6.67079L6.86491 118.881ZM5.82963 115.018L6.02374 115.742H6.02374L5.82963 115.018ZM2.93185 115.794L2.73774 115.07H2.73774L2.93185 115.794ZM77.8298 119.658L77.6356 120.382V120.382L77.8298 119.658ZM74.932 118.881L75.1261 118.157V118.157L74.932 118.881ZM75.9672 115.018L75.7731 115.742V115.742L75.9672 115.018ZM78.865 115.794L79.0591 115.07V115.07L78.865 115.794ZM1 91.75C0.585786 91.75 0.25 92.0858 0.25 92.5C0.25 92.9142 0.585786 93.25 1 93.25V92.5V91.75ZM8 93.25C8.41421 93.25 8.75 92.9142 8.75 92.5C8.75 92.0858 8.41421 91.75 8 91.75V92.5V93.25ZM74 91.75C73.5858 91.75 73.25 92.0858 73.25 92.5C73.25 92.9142 73.5858 93.25 74 93.25V92.5V91.75ZM81 93.25C81.4142 93.25 81.75 92.9142 81.75 92.5C81.75 92.0858 81.4142 91.75 81 91.75V92.5V93.25ZM74 92.375V93.125H81V92.375V91.625H74V92.375ZM1 92.375V93.125H8V92.375V91.625H1V92.375ZM24 74.5V75.25H58V74.5V73.75H24V74.5ZM74 90.5H73.25V188.5H74H74.75V90.5H74ZM58 204.5V203.75H24V204.5V205.25H58V204.5ZM8 188.5H8.75V90.5H8H7.25V188.5H8ZM24 204.5V203.75C15.5777 203.75 8.75 196.922 8.75 188.5H8H7.25C7.25 197.751 14.7492 205.25 24 205.25V204.5ZM74 188.5H73.25C73.25 196.922 66.4223 203.75 58 203.75V204.5V205.25C67.2508 205.25 74.75 197.751 74.75 188.5H74ZM58 74.5V75.25C66.4223 75.25 73.25 82.0777 73.25 90.5H74H74.75C74.75 81.2492 67.2508 73.75 58 73.75V74.5ZM24 74.5V73.75C14.7492 73.75 7.25 81.2492 7.25 90.5H8H8.75C8.75 82.0777 15.5777 75.25 24 75.25V74.5ZM66.1762 108.29L65.4433 108.13L62.071 123.643L62.8039 123.802L63.5368 123.961L66.909 108.449L66.1762 108.29ZM19.1961 123.802L19.929 123.643L16.5567 108.13L15.8238 108.29L15.091 108.449L18.4632 123.961L19.1961 123.802ZM18.7905 103.691L18.9319 104.428C23.533 103.544 31.8392 102.25 41 102.25V101.5V100.75C31.71 100.75 23.3023 102.061 18.6491 102.955L18.7905 103.691ZM41 101.5V102.25C50.1608 102.25 58.467 103.544 63.0681 104.428L63.2095 103.691L63.3509 102.955C58.6977 102.061 50.29 100.75 41 100.75V101.5ZM58.2556 126.956L58.3566 126.213C53.9966 125.62 46.6404 124.75 41 124.75V125.5V126.25C46.53 126.25 53.7983 127.107 58.1547 127.699L58.2556 126.956ZM41 125.5V124.75C35.3596 124.75 28.0034 125.62 23.6434 126.213L23.7443 126.956L23.8453 127.699C28.2017 127.107 35.47 126.25 41 126.25V125.5ZM19.1961 123.802L18.4632 123.961C18.9992 126.427 21.3625 128.036 23.8453 127.699L23.7443 126.956L23.6434 126.213C21.9187 126.447 20.295 125.327 19.929 123.643L19.1961 123.802ZM62.8039 123.802L62.071 123.643C61.705 125.327 60.0813 126.447 58.3566 126.213L58.2556 126.956L58.1547 127.699C60.6375 128.036 63.0008 126.427 63.5368 123.961L62.8039 123.802ZM66.1762 108.29L66.909 108.449C67.4531 105.946 65.9073 103.446 63.3509 102.955L63.2095 103.691L63.0681 104.428C64.7561 104.752 65.8173 106.41 65.4433 108.13L66.1762 108.29ZM15.8238 108.29L16.5567 108.13C16.1827 106.41 17.2439 104.752 18.9319 104.428L18.7905 103.691L18.6491 102.955C16.0927 103.446 14.5469 105.946 15.091 108.449L15.8238 108.29ZM13 194.5L12.393 194.94C13.231 196.095 14.842 197.757 17.0032 199.084C19.1691 200.414 21.9319 201.434 25.051 201.222L25 200.474L24.949 199.725C22.2247 199.911 19.77 199.023 17.7881 197.806C15.8015 196.586 14.3342 195.062 13.607 194.06L13 194.5ZM13 84.5L13.607 84.9405C14.3342 83.9383 15.8015 82.414 17.7881 81.194C19.77 79.977 22.2247 79.0889 24.949 79.2746L25 78.5263L25.051 77.7781C21.9319 77.5655 19.1691 78.5857 17.0032 79.9158C14.842 81.2429 13.231 82.9046 12.393 84.0595L13 84.5ZM70 194.5L69.393 194.06C68.6658 195.062 67.1985 196.586 65.2119 197.806C63.23 199.023 60.7753 199.911 58.051 199.725L58 200.474L57.949 201.222C61.0681 201.434 63.8309 200.414 65.9968 199.084C68.158 197.757 69.769 196.095 70.607 194.94L70 194.5ZM69 84.5L69.607 84.0595C68.769 82.9046 67.158 81.2429 64.9968 79.9158C62.8309 78.5857 60.0681 77.5655 56.949 77.7781L57 78.5263L57.051 79.2746C59.7753 79.0889 62.23 79.977 64.2119 81.194C66.1985 82.414 67.6658 83.9383 68.393 84.9405L69 84.5ZM11.3823 117.5L10.6837 117.773C11.7056 120.388 13.3634 124.168 14.749 127.493C15.4457 129.165 16.0751 130.725 16.5318 131.988C16.7602 132.62 16.9419 133.167 17.0667 133.612C17.1964 134.074 17.2474 134.366 17.2501 134.514L18 134.5L18.7499 134.486C18.7435 134.134 18.6446 133.683 18.5108 133.206C18.3721 132.712 18.1769 132.126 17.9424 131.478C17.473 130.18 16.8322 128.592 16.1336 126.916C14.7286 123.544 13.0958 119.824 12.0808 117.227L11.3823 117.5ZM18 134.5H17.25C17.25 141.003 17.2499 150.987 16.8961 159.469C16.7191 163.713 16.4543 167.559 16.0606 170.397C15.8632 171.82 15.6373 172.959 15.3848 173.758C15.2581 174.16 15.1342 174.444 15.0225 174.628C14.9011 174.827 14.8504 174.815 14.9145 174.793L15.1639 175.5L15.4133 176.207C15.8319 176.06 16.1136 175.72 16.3037 175.408C16.5036 175.079 16.6706 174.668 16.8152 174.21C17.1055 173.291 17.345 172.055 17.5464 170.603C17.9503 167.691 18.2173 163.787 18.3948 159.531C18.7501 151.013 18.75 140.997 18.75 134.5H18ZM15.1639 175.5L15.5145 174.837C15.5422 174.852 15.4994 174.836 15.4029 174.702C15.3127 174.576 15.2032 174.384 15.08 174.11C14.8338 173.562 14.5638 172.754 14.2881 171.65C13.7379 169.445 13.1856 166.144 12.7376 161.561C11.8419 152.399 11.3687 138.185 12.1318 117.528L11.3823 117.5L10.6328 117.472C9.86823 138.171 10.3404 152.457 11.2447 161.707C11.6966 166.329 12.258 169.711 12.8328 172.013C13.1196 173.162 13.415 174.064 13.7117 174.724C13.86 175.054 14.0163 175.342 14.1831 175.575C14.3438 175.799 14.5492 176.023 14.8133 176.163L15.1639 175.5ZM17.9418 147.5L18.1522 146.78L11.3073 144.78L11.0969 145.5L10.8866 146.22L17.7315 148.22L17.9418 147.5ZM70.6177 117.5L69.9192 117.227C68.9042 119.824 67.2714 123.544 65.8664 126.916C65.1678 128.592 64.527 130.18 64.0576 131.478C63.8231 132.126 63.6279 132.712 63.4892 133.206C63.3554 133.683 63.2565 134.134 63.2501 134.486L64 134.5L64.7499 134.514C64.7526 134.366 64.8036 134.074 64.9333 133.612C65.0581 133.167 65.2398 132.62 65.4682 131.988C65.9249 130.725 66.5543 129.165 67.251 127.493C68.6366 124.168 70.2944 120.388 71.3163 117.773L70.6177 117.5ZM64 134.5H63.25C63.25 140.997 63.2499 151.013 63.6052 159.531C63.7827 163.787 64.0497 167.691 64.4536 170.603C64.655 172.055 64.8945 173.291 65.1848 174.21C65.3294 174.668 65.4964 175.079 65.6963 175.408C65.8864 175.72 66.1681 176.06 66.5867 176.207L66.8361 175.5L67.0855 174.793C67.1496 174.815 67.0989 174.827 66.9775 174.628C66.8658 174.444 66.7419 174.16 66.6152 173.758C66.3626 172.959 66.1368 171.82 65.9394 170.397C65.5457 167.559 65.2809 163.713 65.1039 159.469C64.7501 150.987 64.75 141.003 64.75 134.5H64ZM66.8361 175.5L67.1867 176.163C67.4508 176.023 67.6562 175.799 67.8169 175.575C67.9837 175.342 68.14 175.054 68.2883 174.724C68.585 174.064 68.8804 173.162 69.1672 172.013C69.742 169.711 70.3034 166.329 70.7553 161.707C71.6596 152.457 72.1318 138.171 71.3672 117.472L70.6177 117.5L69.8682 117.528C70.6313 138.185 70.1581 152.399 69.2624 161.561C68.8144 166.144 68.2621 169.445 67.7119 171.65C67.4362 172.754 67.1662 173.562 66.92 174.11C66.7968 174.384 66.6873 174.576 66.5971 174.702C66.5006 174.836 66.4578 174.852 66.4855 174.837L66.8361 175.5ZM64.0582 147.5L64.2685 148.22L71.1134 146.22L70.9031 145.5L70.6927 144.78L63.8478 146.78L64.0582 147.5ZM19.9408 181.258L20.6702 181.432L23.1103 171.228L22.3809 171.054L21.6515 170.88L19.2114 181.084L19.9408 181.258ZM59.6191 171.054L58.8897 171.228L61.3298 181.432L62.0592 181.258L62.7886 181.084L60.3485 170.88L59.6191 171.054ZM59.0293 185.945L58.9057 185.205C54.8989 185.874 48.267 186.75 41 186.75V187.5V188.25C48.3781 188.25 55.0981 187.362 59.1529 186.685L59.0293 185.945ZM41 187.5V186.75C33.733 186.75 27.1011 185.874 23.0943 185.205L22.9707 185.945L22.8471 186.685C26.9019 187.362 33.6219 188.25 41 188.25V187.5ZM26.8516 167.974L26.7612 168.719C30.4898 169.171 36.4134 169.788 41 169.788V169.038V168.288C36.5113 168.288 30.6653 167.681 26.9419 167.23L26.8516 167.974ZM41 169.038V169.788C45.5866 169.788 51.5102 169.171 55.2388 168.719L55.1484 167.974L55.0581 167.23C51.3347 167.681 45.4887 168.288 41 168.288V169.038ZM59.6191 171.054L60.3485 170.88C59.7767 168.488 57.4826 166.935 55.0581 167.23L55.1484 167.974L55.2388 168.719C56.9229 168.514 58.499 169.595 58.8897 171.228L59.6191 171.054ZM22.3809 171.054L23.1103 171.228C23.501 169.595 25.0771 168.514 26.7612 168.719L26.8516 167.974L26.9419 167.23C24.5174 166.935 22.2233 168.488 21.6515 170.88L22.3809 171.054ZM19.9408 181.258L19.2114 181.084C18.5978 183.649 20.1997 186.242 22.8471 186.685L22.9707 185.945L23.0943 185.205C21.3491 184.914 20.2481 183.198 20.6702 181.432L19.9408 181.258ZM62.0592 181.258L61.3298 181.432C61.7519 183.198 60.6509 184.914 58.9057 185.205L59.0293 185.945L59.1529 186.685C61.8003 186.242 63.4022 183.649 62.7886 181.084L62.0592 181.258ZM2.93185 115.794L3.12597 116.519L6.02374 115.742L5.82963 115.018L5.63552 114.293L2.73774 115.07L2.93185 115.794ZM6.86491 118.881L6.67079 118.157L3.77301 118.933L3.96713 119.658L4.16124 120.382L7.05902 119.606L6.86491 118.881ZM3.96713 119.658L3.77301 118.933C3.10618 119.112 2.42076 118.716 2.24208 118.05L1.51764 118.244L0.793194 118.438C1.18628 119.905 2.69421 120.775 4.16124 120.382L3.96713 119.658ZM8.27912 116.432L7.55467 116.626C7.73335 117.293 7.33762 117.978 6.67079 118.157L6.86491 118.881L7.05902 119.606C8.52605 119.213 9.39665 117.705 9.00356 116.238L8.27912 116.432ZM5.82963 115.018L6.02374 115.742C6.69058 115.563 7.376 115.959 7.55467 116.626L8.27912 116.432L9.00356 116.238C8.61047 114.771 7.10255 113.9 5.63551 114.293L5.82963 115.018ZM2.93185 115.794L2.73774 115.07C1.27071 115.463 0.400104 116.971 0.793194 118.438L1.51764 118.244L2.24208 118.05C2.06341 117.383 2.45913 116.697 3.12597 116.519L2.93185 115.794ZM78.865 115.794L79.0591 115.07L76.1614 114.293L75.9672 115.018L75.7731 115.742L78.6709 116.519L78.865 115.794ZM74.932 118.881L74.7379 119.606L77.6356 120.382L77.8298 119.658L78.0239 118.933L75.1261 118.157L74.932 118.881ZM77.8298 119.658L77.6356 120.382C79.1027 120.775 80.6106 119.905 81.0037 118.438L80.2792 118.244L79.5548 118.05C79.3761 118.716 78.6907 119.112 78.0239 118.933L77.8298 119.658ZM73.5178 116.432L72.7933 116.238C72.4002 117.705 73.2708 119.213 74.7379 119.606L74.932 118.881L75.1261 118.157C74.4593 117.978 74.0635 117.293 74.2422 116.626L73.5178 116.432ZM75.9672 115.018L76.1614 114.293C74.6943 113.9 73.1864 114.771 72.7933 116.238L73.5178 116.432L74.2422 116.626C74.4209 115.959 75.1063 115.563 75.7731 115.742L75.9672 115.018ZM78.865 115.794L78.6709 116.519C79.3377 116.697 79.7335 117.383 79.5548 118.05L80.2792 118.244L81.0037 118.438C81.3968 116.971 80.5262 115.463 79.0591 115.07L78.865 115.794ZM1 92.5V93.25H8V92.5V91.75H1V92.5ZM74 92.5V93.25H81V92.5V91.75H74V92.5Z" fill="currentColor"/>
+<defs>
+<clipPath id="clip0_71388_6940-u10">
+<rect width="19" height="79.8177" fill="white" transform="translate(1.09106 19) rotate(-90)"/>
+</clipPath>
+</defs>
+</svg>
+</div>
+          <div class="hidden h-44 [&_svg]:h-full [&_svg]:w-auto" data-adas-rig-diagram="truck"><svg viewBox="0 0 82 207" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_71388_6987-u11)">
+<path fill-rule="evenodd" clip-rule="evenodd" d="M58.1416 16.4492L58.1416 17.3619C58.2466 17.3619 58.3493 17.3593 58.4505 17.3568C58.6686 17.3513 58.8791 17.346 59.0872 17.3672C59.5862 17.4178 59.8321 17.7215 59.8064 18.1974C59.7833 18.6324 59.4894 18.9068 59.0135 18.9094C57.8744 18.9156 56.7344 18.9156 55.5953 18.9094C55.1256 18.9068 54.8326 18.6351 54.7918 18.1965C54.7518 17.7641 55.0022 17.4463 55.4763 17.3832C55.7041 17.3529 55.9348 17.3458 56.1741 17.3384C56.2854 17.3349 56.3986 17.3314 56.5142 17.3255L56.5142 16.4607L42.0316 16.4607C42.0129 16.5941 42.0117 16.7428 42.0105 16.8937C42.006 17.4387 42.0012 18.0126 41.1731 17.9994C40.4093 17.9872 40.3982 17.4551 40.3871 16.9259C40.3837 16.7618 40.3803 16.598 40.3545 16.4501L25.9136 16.4501L25.9136 17.3877C26.0123 17.3877 26.1088 17.3858 26.2036 17.384C26.4105 17.3801 26.6095 17.3763 26.8068 17.3921C27.3066 17.4321 27.5916 17.741 27.5721 18.1858C27.5534 18.6191 27.2631 18.9077 26.7837 18.913C25.6295 18.9245 24.4753 18.9236 23.3211 18.9112C22.8647 18.9059 22.5983 18.6298 22.5761 18.2009C22.5522 17.7464 22.799 17.4392 23.266 17.3974C23.4855 17.378 23.707 17.3827 23.9381 17.3876C24.0444 17.3898 24.1528 17.3921 24.264 17.3921L24.264 16.451C24.1854 16.451 24.1063 16.4521 24.0269 16.4532C23.8484 16.4556 23.6682 16.4581 23.4889 16.4483C22.9153 16.4181 22.5939 16.0914 22.5895 15.517C22.5838 14.718 22.5848 13.919 22.5859 13.0952C22.5864 12.76 22.5868 12.4207 22.5868 12.0757L22.0035 12.0757L2.07214 12.0757C1.30149 12.0739 1.09639 11.8777 1.0955 11.115C1.09328 9.96834 1.09217 9.68733 1.09162 9.40633C1.09106 9.12533 1.09106 8.84432 1.09106 7.69766C1.09106 6.9865 1.33522 6.74766 2.05172 6.74766L21.9831 6.74766L22.401 6.74766L22.401 3.79659C22.401 3.75219 22.4006 3.7078 22.4002 3.66341L22.4002 3.66295C22.3995 3.57432 22.3987 3.48569 22.401 3.39705C22.4161 2.83416 22.7491 2.495 23.3155 2.4728C23.4752 2.46675 23.6358 2.46812 23.8101 2.46961C23.8915 2.4703 23.976 2.47103 24.0649 2.47103L24.0666 2.47191L24.0666 1.5592C23.9617 1.5592 23.859 1.56179 23.7578 1.56433C23.5397 1.56981 23.3292 1.57511 23.1211 1.55388C22.6221 1.50327 22.3762 1.19962 22.4019 0.723737C22.425 0.28869 22.7189 0.0143447 23.1948 0.0116812C24.3339 0.00546621 25.4739 0.00546619 26.613 0.0116811C27.0827 0.0143447 27.3757 0.286027 27.4165 0.724625C27.4565 1.15701 27.2061 1.47486 26.732 1.5379C26.5042 1.56819 26.2735 1.57533 26.0342 1.58273C25.9229 1.58618 25.8097 1.58968 25.6941 1.59561L25.6941 2.46037L40.1767 2.46037C40.1954 2.32698 40.1966 2.1783 40.1978 2.02742C40.2023 1.48238 40.2071 0.908516 41.0352 0.921727C41.799 0.933926 41.8101 1.46602 41.8211 1.9952C41.8246 2.15928 41.828 2.32309 41.8538 2.47103L56.2947 2.47103L56.2947 1.53346C56.196 1.53346 56.0995 1.5353 56.0047 1.5371C55.7978 1.54105 55.5988 1.54485 55.4015 1.52902C54.9017 1.48906 54.6167 1.18009 54.6362 0.735279C54.6549 0.302008 54.9452 0.0134565 55.4246 0.0081294C56.5788 -0.00341266 57.733 -0.00252483 58.8872 0.00990506C59.3436 0.0152322 59.6099 0.291354 59.6321 0.720185C59.6561 1.17476 59.4093 1.48196 58.9423 1.52369C58.7228 1.54314 58.5013 1.53845 58.2702 1.53356C58.1639 1.53131 58.0555 1.52902 57.9443 1.52902L57.9443 2.47014C58.0229 2.47014 58.102 2.46904 58.1814 2.46794C58.3598 2.46547 58.5401 2.46297 58.7194 2.4728C59.293 2.50299 59.6144 2.82972 59.6188 3.40416L59.6215 6.74766L79.8114 6.74766C80.662 6.74766 80.8564 6.9421 80.8564 7.78112L80.8564 11.0662C80.8564 11.8155 80.5945 12.0748 79.8434 12.0748L60.3116 12.0748L59.8073 12.0748L59.8073 15.1245C59.8073 15.1689 59.8077 15.2133 59.808 15.2577L59.808 15.2582C59.8088 15.3468 59.8096 15.4354 59.8073 15.5241C59.7922 16.087 59.4592 16.4261 58.8928 16.4483C58.7331 16.4544 58.5725 16.453 58.3983 16.4515C58.3168 16.4508 58.2323 16.4501 58.1434 16.4501L58.1416 16.4492ZM2.7034 8.37687L22.5522 8.37687L79.2485 8.37686L79.2485 10.45L2.7034 10.45L2.7034 8.37687ZM24.1672 12.1014L40.3758 12.1014L40.3758 14.8076L24.1672 14.8076L24.1672 12.1014ZM58.1745 14.8005L41.9739 14.8005L41.9739 12.1103L58.1745 12.1103L58.1745 14.8005ZM41.8325 4.11355L58.0411 4.11355L58.0411 6.74766L41.8325 6.74766L41.8325 4.11355ZM24.0338 4.12065L40.2344 4.12065L40.2344 6.74766L24.0338 6.74766L24.0338 4.12065Z" fill="currentColor"/>
+</g>
+<path d="M80 93C80 93.5523 80.4477 94 81 94C81.5523 94 82 93.5523 82 93L81 93L80 93ZM81 8L80 8L80 9.25L81 9.25L82 9.25L82 8L81 8ZM81 11.75L80 11.75L80 14.25L81 14.25L82 14.25L82 11.75L81 11.75ZM81 16.75L80 16.75L80 19.25L81 19.25L82 19.25L82 16.75L81 16.75ZM81 21.75L80 21.75L80 24.25L81 24.25L82 24.25L82 21.75L81 21.75ZM81 26.75L80 26.75L80 29.25L81 29.25L82 29.25L82 26.75L81 26.75ZM81 31.75L80 31.75L80 34.25L81 34.25L82 34.25L82 31.75L81 31.75ZM81 36.75L80 36.75L80 39.25L81 39.25L82 39.25L82 36.75L81 36.75ZM81 41.75L80 41.75L80 44.25L81 44.25L82 44.25L82 41.75L81 41.75ZM81 46.75L80 46.75L80 49.25L81 49.25L82 49.25L82 46.75L81 46.75ZM81 51.75L80 51.75L80 54.25L81 54.25L82 54.25L82 51.75L81 51.75ZM81 56.75L80 56.75L80 59.25L81 59.25L82 59.25L82 56.75L81 56.75ZM81 61.75L80 61.75L80 64.25L81 64.25L82 64.25L82 61.75L81 61.75ZM81 66.75L80 66.75L80 69.25L81 69.25L82 69.25L82 66.75L81 66.75ZM81 71.75L80 71.75L80 74.25L81 74.25L82 74.25L82 71.75L81 71.75ZM81 76.75L80 76.75L80 79.25L81 79.25L82 79.25L82 76.75L81 76.75ZM81 81.75L80 81.75L80 84.25L81 84.25L82 84.25L82 81.75L81 81.75ZM81 86.75L80 86.75L80 89.25L81 89.25L82 89.25L82 86.75L81 86.75ZM81 91.75L80 91.75L80 93L81 93L82 93L82 91.75L81 91.75Z" fill="currentColor"/>
+<path d="M-3.71547e-06 93C-3.73961e-06 93.5523 0.447711 94 0.999996 94C1.55228 94 2 93.5523 2 93L0.999996 93L-3.71547e-06 93ZM1 8L0 8L-5.46392e-08 9.25L1 9.25L2 9.25L2 8L1 8ZM1 11.75L-1.63918e-07 11.75L-2.73196e-07 14.25L1 14.25L2 14.25L2 11.75L1 11.75ZM1 16.75L-3.82475e-07 16.75L-4.91753e-07 19.25L1 19.25L2 19.25L2 16.75L1 16.75ZM0.999999 21.75L-6.01032e-07 21.75L-7.1031e-07 24.25L0.999999 24.25L2 24.25L2 21.75L0.999999 21.75ZM0.999999 26.75L-8.19589e-07 26.75L-9.28867e-07 29.25L0.999999 29.25L2 29.25L2 26.75L0.999999 26.75ZM0.999999 31.75L-1.03815e-06 31.75L-1.14742e-06 34.25L0.999999 34.25L2 34.25L2 31.75L0.999999 31.75ZM0.999999 36.75L-1.2567e-06 36.75L-1.36598e-06 39.25L0.999999 39.25L2 39.25L2 36.75L0.999999 36.75ZM0.999999 41.75L-1.47526e-06 41.75L-1.58454e-06 44.25L0.999998 44.25L2 44.25L2 41.75L0.999999 41.75ZM0.999998 46.75L-1.69382e-06 46.75L-1.80309e-06 49.25L0.999998 49.25L2 49.25L2 46.75L0.999998 46.75ZM0.999998 51.75L-1.91237e-06 51.75L-2.02165e-06 54.25L0.999998 54.25L2 54.25L2 51.75L0.999998 51.75ZM0.999998 56.75L-2.13093e-06 56.75L-2.24021e-06 59.25L0.999998 59.25L2 59.25L2 56.75L0.999998 56.75ZM0.999998 61.75L-2.34949e-06 61.75L-2.45877e-06 64.25L0.999998 64.25L2 64.25L2 61.75L0.999998 61.75ZM0.999997 66.75L-2.56804e-06 66.75L-2.67732e-06 69.25L0.999997 69.25L2 69.25L2 66.75L0.999997 66.75ZM0.999997 71.75L-2.7866e-06 71.75L-2.89588e-06 74.25L0.999997 74.25L2 74.25L2 71.75L0.999997 71.75ZM0.999997 76.75L-3.00516e-06 76.75L-3.11444e-06 79.25L0.999997 79.25L2 79.25L2 76.75L0.999997 76.75ZM0.999997 81.75L-3.22371e-06 81.75L-3.33299e-06 84.25L0.999997 84.25L2 84.25L2 81.75L0.999997 81.75ZM0.999997 86.75L-3.44227e-06 86.75L-3.55155e-06 89.25L0.999996 89.25L2 89.25L2 86.75L0.999997 86.75ZM0.999996 91.75L-3.66083e-06 91.75L-3.71547e-06 93L0.999996 93L2 93L2 91.75L0.999996 91.75Z" fill="currentColor"/>
+<path d="M15 79.5H67C71.4183 79.5 75 83.0817 75 87.5V119.5C75 121.709 73.2091 123.5 71 123.5H11C8.79086 123.5 7 121.709 7 119.5V87.5C7 83.0817 10.5817 79.5 15 79.5ZM15 79.5H65C65 76.7386 62.7614 74.5 60 74.5H20C17.2386 74.5 15 76.7386 15 79.5ZM62 127.5C62 129.709 60.2091 131.5 58 131.5H24C21.7909 131.5 20 129.709 20 127.5V123.5H62V201.5C62 203.709 60.2091 205.5 58 205.5H24C21.7909 205.5 20 203.709 20 201.5V123.5M62 123.5V127.5M62 127.5C60.3431 127.5 59 128.843 59 130.5C59 132.157 60.3431 133.5 62 133.5C63.6569 133.5 65 132.157 65 130.5C65 128.843 63.6569 127.5 62 127.5ZM75 92.875H81M1 92.875H7M69 176.5H71C73.2091 176.5 75 174.709 75 172.5V158.5C75 156.291 73.2091 154.5 71 154.5H69C66.7909 154.5 65 156.291 65 158.5V172.5C65 174.709 66.7909 176.5 69 176.5ZM69 200.5H71C73.2091 200.5 75 198.709 75 196.5V182.5C75 180.291 73.2091 178.5 71 178.5H69C66.7909 178.5 65 180.291 65 182.5V196.5C65 198.709 66.7909 200.5 69 200.5ZM11 176.5H13C15.2091 176.5 17 174.709 17 172.5V158.5C17 156.291 15.2091 154.5 13 154.5H11C8.79086 154.5 7 156.291 7 158.5V172.5C7 174.709 8.79086 176.5 11 176.5ZM11 200.5H13C15.2091 200.5 17 198.709 17 196.5V182.5C17 180.291 15.2091 178.5 13 178.5H11C8.79086 178.5 7 180.291 7 182.5V196.5C7 198.709 8.79086 200.5 11 200.5ZM19 103.5H61C63.2091 103.5 65 101.709 65 99.5V90.5C65 88.2909 63.2091 86.5 61 86.5H19C16.7909 86.5 15 88.2909 15 90.5V99.5C15 101.709 16.7909 103.5 19 103.5ZM67 130.5C67 133.261 64.7614 135.5 62 135.5C59.2386 135.5 57 133.261 57 130.5C57 127.739 59.2386 125.5 62 125.5C64.7614 125.5 67 127.739 67 130.5Z" stroke="currentColor" stroke-width="1.5"/>
+<defs>
+<clipPath id="clip0_71388_6987-u11">
+<rect width="19" height="79.8177" fill="white" transform="translate(1.09106 19) rotate(-90)"/>
+</clipPath>
+</defs>
+</svg>
+</div>
+        </div>
+        <div class="flex flex-col items-center gap-2 w-24 shrink-0">
+          <span class="text-xs text-base-content/60 text-center">Right Sensor</span>
+          <span class="text-xl font-bold text-base-content" data-adas-rig-sensor-value="right">—</span>
+          <button type="button" class="btn btn-circle btn-outline btn-sm" data-adas-rig-connect="right" aria-label="Connect right sensor">
+            
+<span class="icon icon-bluetooth w-4 h-4 inline-block shrink-0 [&_svg]:w-full [&_svg]:h-full [&_svg]:block" role="img" aria-hidden="true">
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M6.5 6.5L17.5 17.5L12 23V1L17.5 6.5L6.5 17.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
+
+</span>
+
+          </button>
+        </div>
+      </div>
+      <div class="hidden alert alert-soft alert-success text-sm" data-adas-rig-align-success>
+        
+<span class="icon icon-success w-4 h-4 shrink-0 inline-block shrink-0 [&_svg]:w-full [&_svg]:h-full [&_svg]:block" role="img" aria-hidden="true">
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+  <circle cx="12" cy="12" r="10"/>
+  <path d="m9 12 2 2 4-4"/>
+</svg>
+
+</span>
+
+        Rig aligned — ready for calibration.
+      </div>
+      <div class="modal-action justify-between mt-6">
+        <button type="button" class="btn btn-ghost" data-adas-calibration-cancel>Cancel</button>
+        <button type="button" class="btn btn-primary hidden" id="adas-calibration-align-continue">Continue</button>
+      </div>
+    </div>
+
+    
+    <div id="adas-calibration-state-confirm" class="adas-calibration-state hidden" data-state="confirm">
+      <div class="flex items-start justify-between gap-3 mb-4">
+        <h2 id="adas-calibration-title" class="text-lg font-semibold text-base-content leading-snug"></h2>
+        <form method="dialog">
+          <button type="submit" class="btn btn-sm btn-circle btn-ghost shrink-0" aria-label="Close" data-adas-calibration-cancel>
+            
+<span class="icon icon-close w-4 h-4 inline-block shrink-0 [&_svg]:w-full [&_svg]:h-full [&_svg]:block" role="img" aria-hidden="true">
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true">
+  <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+</svg>
+
+</span>
+
+          </button>
+        </form>
+      </div>
+      <p id="adas-calibration-description" class="text-sm text-base-content/70"></p>
+      <div class="alert alert-soft text-sm mt-4">
+        
+<span class="icon icon-crosshair w-4 h-4 shrink-0 inline-block shrink-0 [&_svg]:w-full [&_svg]:h-full [&_svg]:block" role="img" aria-hidden="true">
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M22 12C22 17.5228 17.5228 22 12 22M22 12C22 6.47715 17.5228 2 12 2M22 12H18M12 22C6.47715 22 2 17.5228 2 12M12 22V18M2 12C2 6.47715 6.47715 2 12 2M2 12H6M12 2V6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
+
+</span>
+
+        <span class="flex-1">Using rig <span class="font-medium" id="adas-calibration-rig-type"></span> · Serial <span class="font-medium" id="adas-calibration-rig-serial"></span></span>
+        <button type="button" class="link link-primary text-xs shrink-0" data-adas-calibration-change-rig>Change</button>
+      </div>
+      <div class="modal-action justify-between mt-6">
+        <button type="button" class="btn btn-ghost" data-adas-calibration-cancel>Cancel</button>
+        <button type="button" class="btn btn-primary" id="adas-calibration-start">Start Calibration</button>
+      </div>
+    </div>
+
+    
+    <div id="adas-calibration-state-progress" class="adas-calibration-state hidden" data-state="progress">
+      <div class="flex flex-col items-center gap-6 py-10">
+        <span class="loading loading-spinner loading-lg text-primary" aria-hidden="true"></span>
+        <p id="adas-calibration-progress-status" class="text-base font-semibold text-base-content text-center min-h-[1.5rem]"></p>
+      </div>
+    </div>
+
+    
+    <div id="adas-calibration-state-result" class="adas-calibration-state hidden" data-state="result">
+      <div class="flex flex-col items-center gap-3 py-6 text-center">
+        
+<span class="icon icon-success w-12 h-12 text-success inline-block shrink-0 [&_svg]:w-full [&_svg]:h-full [&_svg]:block" role="img" aria-hidden="true">
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+  <circle cx="12" cy="12" r="10"/>
+  <path d="m9 12 2 2 4-4"/>
+</svg>
+
+</span>
+
+        <p class="text-base font-semibold text-base-content">Calibration complete</p>
+        <p id="adas-calibration-result-text" class="text-sm text-base-content/70"></p>
+      </div>
+      <div class="modal-action justify-end">
+        <button type="button" class="btn btn-primary" data-adas-calibration-cancel>Done</button>
+      </div>
+    </div>
+  </div>
+  <form method="dialog" class="modal-backdrop" aria-label="Close">
+    <button type="submit" class="cursor-default w-full h-full min-h-screen" aria-label="Close"></button>
+  </form>
+</dialog>
+
+
+
+<div class="hidden" data-icon-pool aria-hidden="true">
+  
+</div>
+
+
+<div class="ecu-detail-wrapper w-full flex flex-col flex-1 min-h-0" data-base-path="/diagnostics-pub/">
+  <div class="ecu-detail-page w-full flex flex-col flex-1 min-h-0 gap-4 lg:max-h-[calc(100vh-7rem)]">
+    
+<div class="content-header border-b border-base-300 pb-4 shrink-0 flex flex-col gap-4">
+  
+    <div class="flex items-center gap-3 min-w-0">
+      <a href="#" class="btn btn-square btn-ghost btn-sm shrink-0" aria-label="Back to Diagnostics Dashboard" data-ecu-back-link>
+        
+<span class="icon icon-arrow-left w-4 h-4 inline-block shrink-0 [&_svg]:w-full [&_svg]:h-full [&_svg]:block" role="img" aria-hidden="true">
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M19 12H5M5 12L12 19M5 12L12 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
+
+</span>
+
+      </a>
+      <div class="min-w-0">
+        <h1 class="text-xl font-semibold text-base-content truncate" data-ecu-title>ECU</h1>
+        <p class="text-xs text-base-content/60 truncate" data-ecu-vehicle-subtitle></p>
+      </div>
+    </div>
+    
+</div>
+
+
+    <div class="flex flex-col gap-4 flex-1 min-h-0 overflow-auto">
+      <div class="card bg-base-100 border border-base-200 rounded-box p-4">
+        <p class="text-xs font-semibold uppercase tracking-wide text-base-content/50 mb-2">ECU Information</p>
+        <dl class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-x-4 gap-y-2 text-sm">
+          <div><dt class="text-base-content/60">System Type</dt><dd class="font-medium" data-ecu-type>—</dd></div>
+          <div><dt class="text-base-content/60">System Group</dt><dd class="font-medium" data-ecu-group>—</dd></div>
+          <div><dt class="text-base-content/60">Module Address / ID</dt><dd class="font-medium" data-ecu-address>—</dd></div>
+          <div><dt class="text-base-content/60">Hardware Number</dt><dd class="font-medium" data-ecu-hardware>—</dd></div>
+          <div><dt class="text-base-content/60">Software Version</dt><dd class="font-medium" data-ecu-software>—</dd></div>
+          <div><dt class="text-base-content/60">Serial Number</dt><dd class="font-medium" data-ecu-serial>—</dd></div>
+          <div><dt class="text-base-content/60">Last Communication</dt><dd class="font-medium text-success" data-ecu-last-comm>—</dd></div>
+          <div><dt class="text-base-content/60">VIN</dt><dd class="font-mono font-medium" data-ecu-vin>—</dd></div>
+          <div><dt class="text-base-content/60">Mileage</dt><dd class="font-medium" data-ecu-mileage>—</dd></div>
+        </dl>
+      </div>
+
+      <div role="tablist" class="tabs tabs-box w-fit" data-ecu-tabs>
+        <button type="button" role="tab" class="tab tab-active gap-1.5" data-ecu-tab="dtc">
+          DTC <span class="badge badge-sm" data-ecu-dtc-count>0</span>
+        </button>
+        <button type="button" role="tab" class="tab gap-1.5" data-ecu-tab="live-data">Live Data</button>
+        <button type="button" role="tab" class="tab gap-1.5" data-ecu-tab="functions">Functions</button>
+      </div>
+
+      <div class="card bg-base-100 border border-base-200 rounded-box p-4 flex-1 min-h-0 overflow-auto">
+        <div data-ecu-tab-panel="dtc">
+          <div class="flex flex-col gap-2" data-ecu-dtc-list></div>
+          <p class="text-sm text-base-content/60 hidden" data-ecu-dtc-empty>No DTCs currently stored for this ECU.</p>
+        </div>
+        <div class="hidden" data-ecu-tab-panel="live-data">
+          <div data-ecu-live-data-available class="mb-4">
+            <p class="text-sm text-base-content/70 mb-3">Live parameter streaming is available for this module.</p>
+            <button type="button" class="btn btn-primary btn-sm gap-1.5" data-ecu-open-live-data>
+              
+<span class="icon icon-chart-line w-4 h-4 inline-block shrink-0 [&_svg]:w-full [&_svg]:h-full [&_svg]:block" role="img" aria-hidden="true">
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+  <path d="M3 3v16a2 2 0 0 0 2 2h16"/>
+  <path d="m19 9-5 5-4-4-4 4"/>
+</svg>
+
+</span>
+
+              View Live Data
+            </button>
+          </div>
+          
+          <div data-ecu-pid-groups></div>
+          <p class="text-sm text-base-content/60 hidden" data-ecu-live-data-empty>Live data is not available for this module.</p>
+        </div>
+        <div class="hidden" data-ecu-tab-panel="functions">
+          <div class="flex flex-col gap-1" data-ecu-functions-list></div>
+          <p class="text-sm text-base-content/60 hidden" data-ecu-functions-empty>No functions available for this module.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<dialog id="ecu-function-dialog" class="modal" aria-labelledby="ecu-function-title">
+  <div class="modal-box max-w-md">
+    <div class="flex items-start justify-between gap-3 mb-1">
+      <div class="min-w-0">
+        <p class="text-xs font-semibold uppercase tracking-wide text-base-content/50" data-ecu-function-type></p>
+        <h2 id="ecu-function-title" class="text-lg font-semibold text-base-content" data-ecu-function-title></h2>
+      </div>
+      <form method="dialog">
+        <button type="submit" class="btn btn-sm btn-circle btn-ghost shrink-0" aria-label="Close">
+          
+<span class="icon icon-close w-4 h-4 inline-block shrink-0 [&_svg]:w-full [&_svg]:h-full [&_svg]:block" role="img" aria-hidden="true">
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true">
+  <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+</svg>
+
+</span>
+
+        </button>
+      </form>
+    </div>
+    <p class="text-sm text-base-content/80 mt-2" data-ecu-function-description></p>
+
+    
+    <div class="hidden mt-3" data-ecu-function-notes-wrap>
+      <p class="text-xs font-semibold uppercase tracking-wide text-base-content/50 mb-1">Note</p>
+      <ul class="list-disc list-inside text-sm text-base-content/80" data-ecu-function-notes></ul>
+    </div>
+    <div class="hidden mt-3" data-ecu-function-prereq-wrap>
+      <p class="text-xs font-semibold uppercase tracking-wide text-base-content/50 mb-1">Test Prerequisites</p>
+      <ul class="list-disc list-inside text-sm text-base-content/80" data-ecu-function-prereq></ul>
+    </div>
+    <div class="hidden mt-3" data-ecu-function-procedure-wrap>
+      <p class="text-xs font-semibold uppercase tracking-wide text-base-content/50 mb-1">Procedure</p>
+      <ol class="list-decimal list-inside text-sm text-base-content/80" data-ecu-function-procedure></ol>
+    </div>
+
+    
+    <div class="hidden mt-4 flex flex-col items-center gap-2" data-ecu-function-state-wrap>
+      <p class="text-xs font-semibold uppercase tracking-wide text-base-content/50 self-start">Component State</p>
+      <div class="flex items-center justify-center size-28 rounded-full border-4 border-base-300" data-ecu-function-state-ring>
+        <span class="font-semibold text-base-content/60" data-ecu-function-state-text>OFF</span>
+      </div>
+    </div>
+
+    <p class="text-sm text-error mt-3 hidden" data-ecu-function-fail-note></p>
+
+    <div class="modal-action">
+      <button type="button" class="btn btn-primary" data-ecu-function-start>Start</button>
+      <button type="button" class="btn btn-error hidden" data-ecu-function-stop>Stop</button>
+    </div>
+  </div>
+  <form method="dialog" class="modal-backdrop" aria-label="Close">
+    <button type="submit" class="cursor-default w-full h-full min-h-screen" aria-label="Close"></button>
+  </form>
+</dialog>
+
+<script type="application/json" id="ecu-diagnostic-systems-cars">[{"systemId":"ecm","label":"D5244T17","group":"engine","type":"Diesel","icon":"engine","bus":"CAN-C Powertrain","demoReady":true,"moduleAddress":"0x7E0","hardwareNumber":"03L 906 018","softwareVersion":"SW 1037.00.02","serialNumber":"ECM2109V445781","functionalGroups":[{"id":"air-intake","label":"Air Intake & Induction System","livePids":[{"label":"Mass Air Flow (MAF) actual","unit":"g/s"},{"label":"Intake Air Temperature","unit":"°C"},{"label":"Manifold Absolute Pressure / Boost","unit":"kPa"},{"label":"Throttle Valve position","unit":"%"}]},{"id":"fuel-injection","label":"Fuel Supply & Injection System","livePids":[{"label":"Low-pressure fuel pump duty cycle","unit":"%"},{"label":"High-pressure rail pressure (actual)","unit":"bar"},{"label":"Fuel temperature","unit":"°C"},{"label":"Main injection timing","unit":"° BTDC"}]},{"id":"turbo","label":"Turbocharger & Boost Control","livePids":[{"label":"Boost control solenoid duty cycle","unit":"%"},{"label":"VNT actuator position","unit":"%"},{"label":"Charge air cooler temperature drop","unit":"°C"}]},{"id":"ignition","label":"Ignition & Misfire Detection / Pre-Heating","livePids":[{"label":"Misfire counter (per cylinder)","unit":"count"},{"label":"Ignition timing advance/retard","unit":"° BTDC"},{"label":"Knock sensor signal","unit":"V"},{"label":"Glow plug current draw","unit":"A"}]},{"id":"emissions","label":"Emissions & Exhaust Aftertreatment","livePids":[{"label":"EGR valve position (actual)","unit":"%"},{"label":"O2 / Lambda sensor voltage","unit":"V"},{"label":"DPF differential pressure","unit":"hPa"},{"label":"DPF soot mass","unit":"g"},{"label":"Distance since last regeneration","unit":"km"}]},{"id":"cooling","label":"Engine Cooling & Thermal Management","livePids":[{"label":"Engine Coolant Temperature","unit":"°C"},{"label":"Radiator fan speed","unit":"%"},{"label":"Thermostat heating element duty","unit":"%"}]},{"id":"mechanical-vvt","label":"Engine Mechanical & Variable Valve Timing","livePids":[{"label":"Crankshaft speed","unit":"RPM"},{"label":"Camshaft/Crankshaft sync status","unit":""},{"label":"Camshaft angle offset","unit":"° KW"}]},{"id":"cruise-driver-input","label":"Cruise Control & Driver Input Interface","livePids":[{"label":"Accelerator pedal position 1","unit":"%"},{"label":"Accelerator pedal position 2","unit":"%"},{"label":"Brake pedal switch status","unit":""},{"label":"Target cruise speed vs actual","unit":"km/h"}]}]},{"systemId":"tcm","label":"Gearbox - Automatic (TCM)","group":"drive-train","type":"Gearbox","icon":"drive-train","bus":"CAN-C Powertrain","functionalGroups":[{"id":"transmission","label":"Automatic Transmission (J217)"},{"id":"torque-vectoring","label":"Torque Vectoring Module"}]},{"systemId":"dem","label":"Differential Electronic Module (DEM)","group":"drive-train","type":"Differential","icon":"drive-train","bus":"CAN-C Powertrain","functionalGroups":[{"id":"transfer-case","label":"Transfer Case (J646)"},{"id":"diff-front","label":"Front Differential Lock"},{"id":"diff-rear","label":"Rear Differential Lock"},{"id":"4motion","label":"4MOTION Control"}]},{"systemId":"bcm","label":"Brake Control Module (BCM)","group":"brakes","type":"Brake","icon":"brakes","bus":"CAN-E Chassis","functionalGroups":[{"id":"abs-esp","label":"ABS/ESP (J104)"},{"id":"brake-booster","label":"Brake Booster (J539)"},{"id":"epb","label":"Electronic Parking Brake (J540)"},{"id":"wear-fl","label":"Brake Wear Sensor FL"},{"id":"wear-fr","label":"Brake Wear Sensor FR"},{"id":"wear-rl","label":"Brake Wear Sensor RL"},{"id":"wear-rr","label":"Brake Wear Sensor RR"}]},{"systemId":"parking-brake","label":"Parking Brake Module","group":"brakes","type":"Parking Brake","icon":"brakes","bus":"CAN-E Chassis"},{"systemId":"srs","label":"Airbag (SRS)","group":"safety-systems","type":"SRS - Supplementary Restraint System","icon":"restrains-safety","bus":"CAN-E Chassis","functionalGroups":[{"id":"airbag-j234","label":"Airbag Control (J234)"},{"id":"airbag-driver","label":"Front Airbag Driver"},{"id":"airbag-passenger","label":"Front Airbag Passenger"},{"id":"airbag-side","label":"Side Airbag FL/FR"},{"id":"airbag-curtain","label":"Curtain Airbag L/R"},{"id":"seatbelt-tensioner","label":"Seatbelt Tensioner FL/FR"},{"id":"rollover-sensor","label":"Rollover Sensor"},{"id":"pedestrian","label":"Pedestrian Protection"}]},{"systemId":"ccm","label":"Climate Control Module (CCM)","group":"climate-control","type":"Air Conditioning","icon":"climate-snowflake","bus":"CAN-B Comfort","functionalGroups":[{"id":"climatronic","label":"Climatronic (J255)"},{"id":"ac-compressor","label":"A/C Compressor Control"},{"id":"aux-heater","label":"Auxiliary Heater (J604)"},{"id":"seat-heat-fl","label":"Seat Heating FL (J131)"},{"id":"seat-heat-fr","label":"Seat Heating FR (J132)"},{"id":"seat-heat-rl","label":"Seat Heating RL"},{"id":"seat-heat-rr","label":"Seat Heating RR"},{"id":"steering-heat","label":"Steering Wheel Heating"},{"id":"windshield-heat","label":"Windshield Heating"}]},{"systemId":"preheater","label":"Combustion Preheater Module","group":"climate-control","type":"Heater","icon":"climate-snowflake","bus":"CAN-B Comfort"},{"systemId":"dim","label":"Driver Information Module (DIM)","group":"dashboard","type":"Instrument","icon":"gauge-instruments","bus":"CAN-B Comfort","functionalGroups":[{"id":"cluster","label":"Instrument Cluster (J285)"},{"id":"hud","label":"Head-Up Display (J898)"},{"id":"cockpit","label":"Digital Cockpit Control"}]},{"systemId":"iam-icm","label":"Infotainment Control Module (IAM/ICM)","group":"dashboard","type":"Infotainment","icon":"smartphone","bus":"LIN Bus","functionalGroups":[{"id":"infotainment","label":"Infotainment (J794)"},{"id":"touchscreen","label":"Touchscreen Display"},{"id":"rear-entertainment","label":"Rear Seat Entertainment"}]},{"systemId":"phone-module","label":"Phone Module","group":"dashboard","type":"Telephone","icon":"smartphone","bus":"LIN Bus"},{"systemId":"suspension-module","label":"Suspension Module","group":"chassis","type":"Chassis","icon":"suspension","bus":"CAN-E Chassis","functionalGroups":[{"id":"air-suspension","label":"Air Suspension (J197)"},{"id":"level-fl","label":"Level Control FL"},{"id":"level-fr","label":"Level Control FR"},{"id":"level-rl","label":"Level Control RL"},{"id":"level-rr","label":"Level Control RR"},{"id":"dcc","label":"Adaptive Damping (DCC)"},{"id":"stabilization","label":"Electronic Stabilization"}]},{"systemId":"steering-angle","label":"Steering Angle Sensor","group":"chassis","type":"Steering","icon":"suspension","bus":"CAN-E Chassis"},{"systemId":"eps-swm","label":"Power Steering Control Module (EPS/SWM)","group":"chassis","type":"Steering","icon":"car","bus":"CAN-E Chassis","functionalGroups":[{"id":"steering","label":"Power Steering (J500)"}]},{"systemId":"tpms","label":"Tire Pressure Monitoring System","group":"chassis","type":"Tire","icon":"tpms","bus":"CAN-E Chassis"},{"systemId":"cem","label":"Central Electronic Module (CEM)","group":"body","type":"Central Electronic","icon":"hard-drive","bus":"CAN-B Comfort","functionalGroups":[{"id":"battery-mgmt","label":"Battery Management (J367)"},{"id":"voltage-reg","label":"Voltage Regulator"},{"id":"starter","label":"Starter Motor Control"},{"id":"power-dist","label":"Power Distribution (SA)"},{"id":"power-supply","label":"Onboard Power Supply"},{"id":"dcdc","label":"DC/DC Converter"},{"id":"bcm-body","label":"Body Control (J519)"},{"id":"sunroof","label":"Panoramic Sunroof"},{"id":"mirrors","label":"Exterior Mirrors L/R"},{"id":"wiper","label":"Wiper Motor (V)"},{"id":"rain-light","label":"Rain/Light Sensor (G397)"},{"id":"immobilizer","label":"Immobilizer (J334)"},{"id":"kessy","label":"Kessy Control (J518)"},{"id":"central-lock","label":"Central Locking"},{"id":"alarm","label":"Alarm System (J329)"},{"id":"tilt-sensor","label":"Tilt/Interior Sensor"},{"id":"steering-lock","label":"Steering Column Lock"}]},{"systemId":"door-driver","label":"Driver Door Module","group":"body","type":"Doors","icon":"car-body","bus":"CAN-B Comfort"},{"systemId":"door-passenger","label":"Passenger Door Module","group":"body","type":"Doors","icon":"car-body","bus":"CAN-B Comfort"},{"systemId":"door-rear-left","label":"Rear Door Module (Left)","group":"body","type":"Doors","icon":"car-body","bus":"CAN-B Comfort"},{"systemId":"door-rear-right","label":"Rear Door Module (Right)","group":"body","type":"Doors","icon":"car-body","bus":"CAN-B Comfort"},{"systemId":"tailgate","label":"Power Operated Tailgate Module","group":"body","type":"Doors","icon":"car-body","bus":"CAN-B Comfort"},{"systemId":"trailer-module","label":"Trailer Module","group":"body","type":"Trailer","icon":"trailer","bus":"CAN-B Comfort"},{"systemId":"hcm","label":"Headlamp Control Module (HCM)","group":"body","type":"Lights","icon":"car-body","bus":"CAN-B Comfort","functionalGroups":[{"id":"headlight-l","label":"LED Matrix Headlights L"},{"id":"headlight-r","label":"LED Matrix Headlights R"}]},{"systemId":"collision-speed","label":"Collision Speed Module","group":"adas","type":"Anti Collision","icon":"adas","bus":"FlexRay ADAS"},{"systemId":"pac-pam","label":"Parking Assistance Module (PAC/PAM)","group":"adas","type":"Parking Aid","icon":"crosshair","bus":"FlexRay ADAS","functionalGroups":[{"id":"park-assist","label":"Park Assist (J446)"},{"id":"camera-360","label":"360° Camera System"}]},{"systemId":"blis-left","label":"Side Obstacle Detection Module - Left (BLIS)","group":"adas","type":"Radar System","icon":"shield","bus":"FlexRay ADAS","functionalGroups":[{"id":"side-assist-l","label":"Side Assist L"},{"id":"rear-radar-l","label":"Rear Radar L (J769)"}]},{"systemId":"blis-right","label":"Side Obstacle Detection Module - Right (BLIS)","group":"adas","type":"Radar System","icon":"shield","bus":"FlexRay ADAS","functionalGroups":[{"id":"side-assist-r","label":"Side Assist R"},{"id":"rear-radar-r","label":"Rear Radar R (J770)"}]},{"systemId":"fsm","label":"Forward Sensing Module (FSM)","group":"adas","type":"Sensor System","icon":"adas","bus":"FlexRay ADAS","demoReady":true,"functionalGroups":[{"id":"acc-radar","label":"ACC Radar (J428)","livePids":[{"label":"Radar target distance","unit":"m"},{"label":"Relative closing speed","unit":"km/h"},{"label":"Radar alignment status","unit":""}]},{"id":"front-camera","label":"Front Camera (J852)","demoReady":true,"livePids":[{"label":"Camera signal status","unit":""},{"label":"Lens contamination level","unit":"%"},{"label":"Horizon line offset","unit":"°"}]},{"id":"night-vision","label":"Night Vision (J853)","livePids":[{"label":"IR illuminator status","unit":""},{"label":"Pedestrian detection confidence","unit":"%"},{"label":"Thermal sensor temperature","unit":"°C"}]},{"id":"tsr","label":"Traffic Sign Recognition","livePids":[{"label":"Last recognized sign type","unit":""},{"label":"Sign recognition confidence","unit":"%"}]},{"id":"ldw","label":"Lane Departure Warning","livePids":[{"label":"Lane offset (left)","unit":"cm"},{"label":"Lane offset (right)","unit":"cm"},{"label":"Lane marking confidence","unit":"%"}]},{"id":"emergency-assist","label":"Emergency Assist","livePids":[{"label":"Collision risk level","unit":"%"},{"label":"Autonomous braking status","unit":""}]}]}]</script>
+<script type="application/json" id="ecu-diagnostic-systems-trucks">[{"systemId":"edc","label":"EDC7 Bosch V8","group":"engine","type":"Diesel","icon":"engine","bus":"CAN-C Powertrain","demoReady":true,"moduleAddress":"0x0","hardwareNumber":"21789412","softwareVersion":"SW 22345678","serialNumber":"EDC1709V778812","functionalGroups":[{"id":"fuel-system","label":"Common Rail Fuel System","livePids":[{"label":"Low-pressure supply side pressure","unit":"bar"},{"label":"High-pressure rail pressure (actual)","unit":"bar"},{"label":"Individual cylinder fuel quantity correction","unit":"mg/stroke"},{"label":"Fuel temperature","unit":"°C"}]},{"id":"air-boost-turbo","label":"Air Mass, Boost & Turbocharger Management","livePids":[{"label":"Mass Air Flow (MAF) actual","unit":"kg/h"},{"label":"Boost pressure (actual)","unit":"bar"},{"label":"Charge air temperature before/after intercooler","unit":"°C"},{"label":"Wastegate / VGT actuator position","unit":"%"}]},{"id":"egr","label":"Exhaust Gas Recirculation (EGR) System","livePids":[{"label":"EGR valve position (actual)","unit":"%"},{"label":"EGR mass flow (estimated)","unit":"kg/h"},{"label":"Exhaust temperature before/after EGR cooler","unit":"°C"}]},{"id":"aftertreatment","label":"Exhaust Aftertreatment & Emissions","livePids":[{"label":"DPF differential pressure","unit":"mbar"},{"label":"DPF soot mass (calculated)","unit":"g"},{"label":"NOx sensor, upstream/downstream","unit":"ppm"},{"label":"Exhaust gas temperature (EGT 1-4)","unit":"°C"},{"label":"AdBlue dosing pressure","unit":"bar"},{"label":"AdBlue dosing rate","unit":"g/h"}]},{"id":"thermal-lubrication","label":"Engine Thermal Management & Lubrication","livePids":[{"label":"Engine Coolant Temperature","unit":"°C"},{"label":"Engine Oil Pressure","unit":"bar"},{"label":"Engine Oil Temperature","unit":"°C"},{"label":"Cooling fan speed (actual)","unit":"RPM"},{"label":"Piston cooling jet pressure switch","unit":""}]},{"id":"auxiliary-braking","label":"Auxiliary Engine Braking (EVBec)","livePids":[{"label":"EVBec cylinder backpressure","unit":"bar"},{"label":"Exhaust flap position status","unit":""}]}]},{"systemId":"adblue","label":"DeNOx AdBlue System","group":"engine","type":"Anti Pollution","icon":"droplet","bus":"CAN-C Powertrain","functionalGroups":[{"id":"scr-catalyst","label":"SCR Catalytic Converter"},{"id":"nox-upstream","label":"NOx Sensor, upstream of SCR"},{"id":"nox-downstream","label":"NOx Sensor, downstream of SCR"},{"id":"adblue-supply","label":"AdBlue Supply Module"},{"id":"adblue-heating","label":"AdBlue Line Heating"}]},{"systemId":"transmission","label":"Gearbox (TipMatic / ZF TraXon)","group":"drive-train","type":"Gearbox","icon":"drive-train","bus":"CAN-C Powertrain","functionalGroups":[{"id":"transmission-ecu","label":"Transmission Control Unit"},{"id":"clutch-actuator","label":"Clutch Actuator"}]},{"systemId":"hydrodrive","label":"Hydrodrive","group":"drive-train","type":"Drive Train General","icon":"drive-train","bus":"CAN-C Powertrain"},{"systemId":"ebs","label":"Electronic Braking System 5 (Knorr-Bremse)","group":"brakes","type":"Brake","icon":"brakes","bus":"CAN-E Chassis","functionalGroups":[{"id":"ebs-ecu","label":"EBS Control Unit"},{"id":"abs-sensors","label":"ABS Wheel Speed Sensors"},{"id":"brake-booster","label":"Brake Booster / Modulator"},{"id":"trailer-brake","label":"Trailer Brake Interface"}]},{"systemId":"retarder","label":"Retarder","group":"brakes","type":"Retarder/Intarder","icon":"wind","bus":"CAN-E Chassis","functionalGroups":[{"id":"retarder-ecu","label":"Retarder Control Unit"},{"id":"retarder-lever","label":"Retarder Control Lever"}]},{"systemId":"climate","label":"Climate Control","group":"climate-control","type":"Air Conditioning","icon":"climate-snowflake","bus":"LIN Comfort","functionalGroups":[{"id":"ac-compressor","label":"A/C Compressor Control"},{"id":"climate-ecu","label":"Climate Control Unit"}]},{"systemId":"heater-booster","label":"Auxiliary Heating (Heater Booster)","group":"climate-control","type":"Heater","icon":"sun","bus":"LIN Comfort","functionalGroups":[{"id":"heater-unit","label":"Auxiliary Heater Unit"}]},{"systemId":"instrument","label":"Stoneridge Highline (Instrument Cluster)","group":"dashboard","type":"Instrument","icon":"gauge-instruments","bus":"CAN-B Body","functionalGroups":[{"id":"cluster","label":"Instrument Cluster"},{"id":"display","label":"Driver Info Display"}]},{"systemId":"telematics","label":"Telematics","group":"dashboard","type":"Telematic","icon":"wifi","bus":"CAN-B Body","functionalGroups":[{"id":"telematics-unit","label":"Telematics Control Unit"},{"id":"fleet-modem","label":"Fleet Management Modem"}]},{"systemId":"navigation","label":"Navigation System","group":"dashboard","type":"Navigation","icon":"grid","bus":"CAN-B Body","functionalGroups":[{"id":"nav-unit","label":"Navigation Control Unit"}]},{"systemId":"air-suspension","label":"Electronically Controlled Air Suspension 2","group":"chassis","type":"Air Suspension","icon":"suspension","bus":"CAN-E Chassis","functionalGroups":[{"id":"ecas","label":"ECAS Control Unit"},{"id":"level-front","label":"Level Control, Front Axle"},{"id":"level-rear","label":"Level Control, Rear Axle"},{"id":"lift-axle","label":"Lift Axle Control"}]},{"systemId":"drive-control","label":"Drive Control","group":"chassis","type":"Driving Dynamics","icon":"suspension","bus":"CAN-E Chassis"},{"systemId":"rear-axle-steering","label":"Electro-Hydraulic Rear Axle Steering","group":"chassis","type":"Steering","icon":"suspension","bus":"CAN-E Chassis"},{"systemId":"rear-axle-steering-ecu","label":"Rear Axle Steering - Electronic Control","group":"chassis","type":"Steering","icon":"suspension","bus":"CAN-E Chassis"},{"systemId":"tpms","label":"Tire Pressure Control","group":"chassis","type":"Tire","icon":"tpms","bus":"CAN-E Chassis","functionalGroups":[{"id":"tpms-ecu","label":"TPMS Control Unit"},{"id":"tpms-sensors","label":"Wheel Pressure Sensors"}]},{"systemId":"obd-unit","label":"On Board Diagnostics Unit","group":"body","type":"Central Electronic","icon":"hard-drive","bus":"CAN-B Body"},{"systemId":"ptm","label":"Powertrain Module","group":"body","type":"Central Electronic","icon":"hard-drive","bus":"CAN-B Body","functionalGroups":[{"id":"clutch","label":"Clutch Actuator"},{"id":"pto","label":"Power Take-Off (PTO)"}]},{"systemId":"central-control","label":"Central Control Unit","group":"body","type":"Central Electronic","icon":"hard-drive","bus":"CAN-B Body","functionalGroups":[{"id":"cgw","label":"CGW (Gateway ECU)"},{"id":"cpc","label":"CPC (Drive Control)"},{"id":"msf","label":"MSF (Modularable Switch Module)"},{"id":"mux1","label":"MUX1 (Multiplex System)"},{"id":"mux2","label":"MUX2 (Multiplex System)"},{"id":"mux3","label":"MUX3 (Multiplex System)"},{"id":"mux4","label":"MUX4 (Multiplex System)"},{"id":"mux5","label":"MUX5 (Multiplex System)"},{"id":"mux6","label":"MUX6 (Multiplex System)"}]},{"systemId":"door-control","label":"Door Control Unit","group":"body","type":"Doors","icon":"car-body","bus":"CAN-B Body","functionalGroups":[{"id":"door-driver","label":"Door Module, Driver Side"},{"id":"door-passenger","label":"Door Module, Passenger Side"}]},{"systemId":"bodybuilder-module","label":"Bodybuilder Module","group":"body","type":"Exterior Components","icon":"car-body","bus":"CAN-B Body"},{"systemId":"vas-lgs","label":"Lane Departure Warning System 2 (VAS/LGS)","group":"adas","type":"Lane Assistance System","icon":"adas","bus":"FlexRay ADAS","demoReady":true,"functionalGroups":[{"id":"lane-camera","label":"Lane Guard Camera","demoReady":true,"livePids":[{"label":"Camera signal status","unit":""},{"label":"Lens contamination level","unit":"%"},{"label":"Lane offset (left)","unit":"cm"},{"label":"Lane offset (right)","unit":"cm"},{"label":"Lane marking confidence","unit":"%"}]},{"id":"sign-recognition","label":"Traffic Sign Recognition","livePids":[{"label":"Last recognized sign type","unit":""},{"label":"Sign recognition confidence","unit":"%"}]}]},{"systemId":"eba-acc","label":"Front Radar Sensor System (EBA/ACC)","group":"adas","type":"Radar System","icon":"adas","bus":"FlexRay ADAS","functionalGroups":[{"id":"acc-radar","label":"ACC Radar"},{"id":"collision-mitigation","label":"Collision Mitigation"}]}]</script>
+<script type="application/json" id="ecu-diagnostic-system-groups">[{"id":"engine","label":"Engine","icon":"engine"},{"id":"drive-train","label":"Drive Train","icon":"drive-train"},{"id":"brakes","label":"Brakes","icon":"brakes"},{"id":"electrics","label":"Electrics","icon":"battery"},{"id":"safety-systems","label":"Safety Systems","icon":"shield"},{"id":"climate-control","label":"Climate Control","icon":"climate-snowflake"},{"id":"dashboard","label":"Dashboard","icon":"gauge-instruments"},{"id":"chassis","label":"Chassis","icon":"suspension"},{"id":"body","label":"Body","icon":"car-body"},{"id":"security","label":"Security","icon":"lock"},{"id":"adas","label":"ADAS","icon":"adas"}]</script>
+<script src="/diagnostics-pub/assets/scripts/dtc-library.js"></script>
+<script src="/diagnostics-pub/assets/scripts/dtc-detail-modal.js"></script>
+<script src="/diagnostics-pub/assets/scripts/data-lists-library.js"></script>
+<script src="/diagnostics-pub/assets/scripts/data-lists-modal.js"></script>
+<script src="/diagnostics-pub/assets/scripts/functions-library.js"></script>
+<script src="/diagnostics-pub/assets/scripts/adas-calibration-modal.js"></script>
+<script src="/diagnostics-pub/assets/scripts/live-session.js"></script>
+<script src="/diagnostics-pub/assets/scripts/diagnostics-platform-ecu-detail.js"></script>
+
+        </div>
+      </div>
+    </main>
+  </div>
+  <div class="drawer-side automechanika-drawer-side z-40">
+    <label for="automechanika-drawer" aria-label="close sidebar" class="drawer-overlay"></label>
+    
+
+
+<aside class="automechanika-sidebar w-64 min-h-full bg-base-100 border-r border-primary/15 flex flex-col">
+  <div class="p-4 border-b border-base-300 shrink-0">
+    <a class="btn btn-ghost px-2 justify-start w-full" href="/diagnostics-pub/diagnostics-platform/" data-automechanika-home-link>
+      
+<span class="brand-logo h-5 w-auto inline-block [&_svg]:w-full [&_svg]:h-full [&_svg]:block" data-brand-logo="autocom" role="img" aria-label="Autocom">
+  <svg width="105" height="22" viewBox="0 0 105 22" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_15275_29243-u1175)">
+<path d="M53.1614 19.4296L49.7086 12.9987H48.8715C48.453 12.9987 48.1391 12.6925 48.1391 12.1821C48.1391 11.7738 48.453 11.3655 48.8715 11.3655H50.2317C50.5456 11.3655 50.7549 11.5696 50.8595 11.7738L53.0568 15.9589V5.3429C53.0568 4.93459 53.2661 4.62836 53.6846 4.62836C53.9985 4.52628 54.417 4.73044 54.5217 5.03667L57.9745 11.4675H58.8116C59.2301 11.4675 59.544 11.7738 59.544 12.2842C59.544 12.7945 59.2301 13.1008 58.8116 13.1008H57.4514C57.1375 13.1008 56.9282 12.8966 56.8236 12.6925L54.6263 8.5073V19.2254C54.6263 19.6337 54.417 19.94 53.9985 20.042C53.6846 19.94 53.2661 19.7358 53.1614 19.4296Z" fill="currentColor"/>
+<path d="M104.745 5.13869C104.954 5.75115 104.954 6.874 104.954 8.30309V20.3482C104.85 20.5524 104.745 20.7565 104.431 20.7565H100.351C100.037 20.7565 99.8274 20.4503 99.8274 20.1441V9.32386C99.8274 7.7927 99.7228 6.874 99.7228 6.56777C99.6181 6.26154 99.4089 6.05738 98.9903 6.05738C98.5718 6.05738 98.3625 6.26154 98.2579 6.56777C98.1533 6.874 98.0486 7.89478 98.0486 9.32386V20.2461C98.0486 20.5524 97.8394 20.7565 97.5255 20.7565H93.4448C93.1309 20.7565 92.9217 20.4503 92.9217 20.2461V9.63009C92.9217 7.89478 92.9217 6.874 92.817 6.56777C92.7124 6.26154 92.5031 6.05738 92.0846 6.05738C91.8753 6.05738 91.6661 6.15946 91.4568 6.36362C91.2476 6.56777 91.2475 6.77193 91.1429 7.07816C91.1429 7.38439 91.1429 7.89478 91.1429 8.71139V20.2461C91.1429 20.5524 90.9337 20.8586 90.6198 20.8586H86.5391C86.2252 20.8586 86.0159 20.6544 86.0159 20.3482V3.70961C86.0159 3.40337 86.3298 3.19922 86.6437 3.19922H90.7244C91.0383 3.19922 91.2476 3.50545 91.2476 3.81168V4.93453C91.6661 4.21999 92.1892 3.81168 92.7124 3.40337C93.2356 2.99506 93.8634 2.89299 94.5958 2.89299C96.0606 2.89299 97.107 3.60753 97.944 4.93453C98.3625 4.21999 98.8857 3.81168 99.4089 3.40337C100.037 2.99506 100.664 2.89299 101.292 2.89299C102.234 2.89299 102.966 3.09714 103.49 3.60753C104.222 4.01584 104.536 4.52622 104.745 5.13869ZM25.957 3.19922C26.2709 3.19922 26.4802 3.40337 26.4802 3.70961V20.2461C26.4802 20.5524 26.1663 20.7565 25.8524 20.7565H21.6671C21.3532 20.7565 21.144 20.4503 21.144 20.1441V19.2254C20.8301 19.7357 20.3069 20.2461 19.7837 20.5524C19.2606 20.8586 18.6328 20.9607 17.9004 20.9607C17.0633 20.9607 16.4355 20.8586 15.9124 20.5524C15.3892 20.2461 14.9707 19.8378 14.7614 19.4295C14.5521 18.9191 14.3429 18.5108 14.3429 17.8984C14.2382 17.388 14.2382 16.3672 14.2382 14.836V3.70961C14.2382 3.40337 14.5521 3.19922 14.866 3.19922H19.0513C19.3652 3.19922 19.5745 3.50545 19.5745 3.70961V15.1423C19.5745 16.4693 19.5745 17.388 19.6791 17.5921C19.7837 17.7963 19.993 18.0004 20.3069 18.0004C20.7254 18.0004 20.9347 17.8984 21.0393 17.5921C21.144 17.2859 21.144 16.4693 21.144 15.0402V3.81168C21.144 3.50545 21.4579 3.19922 21.7718 3.19922H25.957ZM10.5761 3.81168C11.5178 4.42415 12.041 5.24077 12.2502 6.15946C12.4595 7.07816 12.5641 9.01763 12.5641 11.9779V20.3482C12.4595 20.5524 12.2502 20.7565 12.041 20.7565H7.85567C7.54178 20.7565 7.33251 20.5524 7.22788 20.2461V19.2254C6.91398 19.8378 6.49545 20.2461 5.97229 20.6544C5.44913 20.9607 4.82134 21.1648 4.08891 21.1648C3.14722 21.1648 2.31016 20.8586 1.57774 20.3482C0.845313 19.8378 0.426785 18.715 0.426785 16.8776V15.4485C0.426785 14.1215 0.636049 13.2028 1.05458 12.6924C1.47311 12.2841 2.51943 11.7737 4.08891 11.0592C5.86766 10.3446 6.80935 9.93632 6.91398 9.63009C7.12325 9.42594 7.12325 9.01763 7.12325 8.20101C7.12325 7.28231 7.01861 6.66985 6.91398 6.36362C6.80935 6.15946 6.49545 5.95531 6.28619 6.05738C5.86766 6.05738 5.6584 6.15946 5.55376 6.36362C5.44913 6.56777 5.44913 7.18023 5.44913 8.20101V9.52801C5.44913 9.73217 5.23987 9.93632 5.0306 10.0384H0.949946C0.740681 10.0384 0.426785 9.83425 0.426785 9.52801V8.81347C0.426785 7.48647 0.636049 6.36362 0.845313 5.64907C1.26384 4.93453 1.787 4.32207 2.83333 3.70961C3.77502 3.19922 4.92597 2.89299 6.49545 2.89299C8.2742 2.89299 9.63442 3.19922 10.5761 3.81168ZM7.12325 12.4883C6.28619 13.1007 5.76303 13.6111 5.6584 14.0194C5.55376 14.4277 5.44913 15.0402 5.44913 15.8568C5.44913 16.7755 5.55376 17.388 5.6584 17.5921C5.76303 17.8984 5.97229 18.0004 6.39082 18.0004C6.70472 18.0004 6.91398 17.8984 7.01861 17.6942C7.12325 17.49 7.12325 16.9797 7.12325 16.061V12.4883ZM35.2693 18.0004C35.4786 18.1025 35.6878 18.3067 35.6878 18.5108V20.2461C35.6878 20.5524 35.4786 20.7565 35.1647 20.7565H33.4906C32.6535 20.7565 31.7118 20.7565 30.8748 20.5524C29.8284 20.3482 28.9914 19.5316 28.7821 18.6129C28.7821 18.3067 28.6775 17.1838 28.6775 15.3464V6.46569H28.0497C27.7358 6.46569 27.5265 6.15946 27.5265 5.85323V4.21999C27.5265 3.91376 27.7358 3.70961 28.0497 3.60753H28.6775V1.36183C28.6775 1.0556 28.8867 0.85144 29.2006 0.85144H33.4906C33.6998 0.85144 33.9091 1.0556 34.0137 1.36183V3.70961H34.9554C35.2693 3.70961 35.4786 3.91376 35.4786 4.21999V5.95531C35.4786 6.26154 35.2693 6.46569 34.9554 6.46569H34.0137V16.4693C34.1184 17.49 34.7462 17.8984 35.2693 18.0004ZM83.1909 4.83246C83.6094 5.44492 83.9233 5.95531 84.1326 6.56777C84.3418 7.18023 84.4465 8.09893 84.4465 9.32386V13.6111C84.4465 15.1423 84.3418 16.3672 84.2372 17.0817C84.1326 17.7963 83.714 18.5108 83.1909 19.1233C82.6677 19.7357 81.9353 20.2461 81.2029 20.5524C80.3658 20.8586 79.4241 20.9607 78.3778 20.9607C77.3315 20.9607 76.3898 20.8586 75.3435 20.5524C73.8786 20.1441 72.7277 18.9191 72.4138 17.49C72.2045 16.7755 72.0999 15.6527 72.0999 14.1215V9.83425C72.0999 8.20101 72.3091 6.874 72.623 5.95531C72.9369 5.03661 73.6693 4.21999 74.5064 3.70961C75.4481 3.19922 76.599 2.89299 78.0639 2.89299C79.2148 2.89299 80.2612 3.09714 81.0982 3.40337C82.0399 3.81168 82.6677 4.21999 83.1909 4.83246ZM79.0056 8.09893C79.0056 7.18023 79.0056 6.66985 78.901 6.36362C78.7963 6.15946 78.5871 6.05738 78.2732 6.05738C77.9593 6.05738 77.75 6.15946 77.6454 6.36362C77.5407 6.56777 77.4361 7.18023 77.4361 8.09893V16.061C77.4361 16.8776 77.5407 17.388 77.5407 17.6942C77.6454 18.0004 77.8546 18.1025 78.1685 18.1025C78.4824 18.1025 78.6917 18.0004 78.7963 17.7963C78.901 17.5921 78.901 17.0817 78.901 16.2651V8.09893H79.0056ZM70.2165 13.6111C70.5304 13.7132 70.7396 13.9173 70.7396 14.2236C70.7396 15.0402 70.7396 15.9589 70.635 16.7755C70.5304 17.49 70.2165 18.2046 69.6933 18.9191C69.1702 19.6337 68.5424 20.2461 67.7053 20.5524C66.8683 20.9607 65.9266 21.1648 64.671 21.1648C63.4154 21.2669 62.1598 20.9607 61.1135 20.3482C60.2764 19.8378 59.544 19.1233 59.2301 18.2046C58.9162 17.2859 58.7069 16.061 58.7069 14.4277C58.7069 14.1215 58.9162 13.9173 59.2301 13.9173C60.0672 13.7132 60.6949 12.9986 60.6949 12.182C60.6949 11.2633 60.0672 10.5488 59.2301 10.4467C58.9162 10.4467 58.7069 10.2426 58.7069 9.93632V9.22178C58.7069 7.69062 58.8116 6.56777 59.1255 5.85323C59.4394 5.13869 60.0672 4.42415 61.0088 3.81168C62.1598 3.19922 63.4154 2.89299 64.671 2.89299C66.0312 2.89299 67.2868 3.19922 68.2285 3.81168C69.1702 4.32207 69.7979 5.13869 70.2165 6.05738C70.5304 6.874 70.635 7.89478 70.7396 9.32386C70.7396 9.63009 70.5304 9.83424 70.2165 9.93632H66.2405C65.9266 9.93632 65.7173 9.63009 65.7173 9.42594V7.7927C65.7173 7.07816 65.6127 6.56777 65.508 6.36362C65.4034 6.05738 65.1941 5.95531 64.8802 5.95531C64.5663 5.95531 64.3571 6.15946 64.2524 6.36362C64.1478 6.56777 64.1478 7.07816 64.1478 7.89478V16.163C64.1478 16.7755 64.2524 17.2859 64.3571 17.5921C64.4617 17.8984 64.7756 18.1025 65.0895 18.1025C65.4034 18.1025 65.7173 17.8984 65.8219 17.5921C65.9266 17.2859 66.0312 16.6734 66.0312 15.7547V14.1215C66.0312 13.8153 66.2405 13.6111 66.5543 13.509L70.2165 13.6111ZM47.5113 4.83246C48.0344 5.44492 48.3483 5.95531 48.5576 6.56777C48.7669 7.18023 48.8715 8.09893 48.8715 9.32386V9.73217C48.8715 10.0384 48.6622 10.2426 48.3483 10.2426C47.4067 10.3446 46.6742 11.0592 46.6742 11.9779C46.6742 12.8966 47.4067 13.7132 48.3483 13.7132C48.6622 13.7132 48.8715 13.9173 48.8715 14.2236C48.8715 15.4485 48.7669 16.3672 48.6622 16.9797C48.5576 17.6942 48.1391 18.4087 47.6159 19.0212C47.0928 19.6337 46.3603 20.1441 45.6279 20.4503C44.7908 20.7565 43.8492 20.8586 42.8028 20.8586C41.7565 20.8586 40.8148 20.7565 39.7685 20.4503C38.3036 20.042 37.1527 18.8171 36.8388 17.388C36.6295 16.6734 36.5249 15.5506 36.5249 14.0194V9.83425C36.5249 8.20101 36.7342 6.874 37.0481 5.95531C37.362 5.03661 38.0944 4.21999 38.9314 3.70961C39.8731 3.19922 41.0241 2.89299 42.4889 2.89299C43.6399 2.89299 44.6862 3.09714 45.5233 3.40337C46.465 3.81168 47.0928 4.21999 47.5113 4.83246ZM43.4306 8.09893C43.4306 7.18023 43.4306 6.66985 43.326 6.36362C43.2214 6.15946 43.0121 6.05738 42.6982 6.05738C42.3843 6.05738 42.175 6.15946 42.0704 6.36362C41.9658 6.56777 41.8611 7.18023 41.8611 8.09893V16.061C41.8611 16.8776 41.9658 17.388 41.9658 17.6942C42.0704 18.0004 42.2797 18.1025 42.5936 18.1025C42.9075 18.1025 43.1167 18.0004 43.2214 17.7963C43.326 17.5921 43.326 17.0817 43.326 16.2651V8.09893H43.4306Z" fill="currentColor"/>
+</g>
+<defs>
+<clipPath id="clip0_15275_29243-u1175">
+<rect width="105" height="22" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+
+</span>
+<span class="brand-logo h-5 w-auto inline-block [&_svg]:w-full [&_svg]:h-full [&_svg]:block" data-brand-logo="wow" role="img" aria-label="WOW">
+  <svg width="60" height="16" viewBox="0 0 60 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M43.5609 13.7315C43.5726 13.6869 43.5813 13.6527 43.5886 13.6171C43.7375 12.907 43.8821 12.1955 44.0339 11.4869C44.1755 10.8244 44.3156 10.1619 44.4689 9.50239C44.6441 8.74927 44.8382 8.0006 45.0149 7.24748C45.0747 6.99347 45.1068 6.73501 45.1565 6.47802C45.1638 6.44237 45.1959 6.41118 45.2178 6.3785C45.2411 6.41266 45.2674 6.44534 45.2893 6.481C45.2952 6.48991 45.2922 6.50476 45.2952 6.51665C45.447 7.25046 45.5915 7.98575 45.7521 8.71807C45.8324 9.08647 45.9725 9.44297 46.0294 9.81285C46.2236 11.0725 46.3944 12.3366 46.5696 13.5992C46.5842 13.7032 46.6163 13.7374 46.7243 13.7374C48.0469 13.7344 49.368 13.7374 50.6906 13.7418C50.8074 13.7418 50.8468 13.7047 50.876 13.5978C51.8906 9.96882 52.9096 6.34136 53.9271 2.71391C53.9387 2.6738 53.9475 2.63369 53.9577 2.58764C53.9022 2.5817 53.8949 2.57576 53.8482 2.58764L50.8979 2.56982C50.5987 2.57576 50.5184 2.55794 50.4892 2.67529C50.3534 3.21599 50.2133 3.7552 50.0761 4.29442C49.6264 6.06953 49.1199 7.83275 48.8746 9.6539C48.8702 9.6851 48.8381 9.71332 48.8192 9.74303C48.7973 9.71184 48.7608 9.68361 48.7535 9.64945C48.6498 9.0731 48.5812 8.48932 48.4425 7.92188C48.0148 6.16608 47.5593 4.41623 47.117 2.66192C47.0951 2.57725 47.0513 2.56982 46.9798 2.56982C45.8718 2.56982 44.7638 2.56982 43.6543 2.56536C43.5638 2.56536 43.5302 2.59656 43.5069 2.67826C43.3521 3.22193 43.1886 3.76263 43.0354 4.3063C42.5288 6.09032 41.9317 7.85206 41.6179 9.68658C41.6135 9.71629 41.5755 9.74006 41.5536 9.7668C41.5332 9.73412 41.5011 9.70292 41.4953 9.66727C41.3755 8.95575 41.2938 8.23679 41.1361 7.53269C40.7741 5.90464 40.3756 4.28551 39.9946 2.66192C39.9741 2.57576 39.9347 2.55942 39.8544 2.55942C38.799 2.55942 37.7421 2.55942 36.6866 2.55794C36.653 2.55794 36.618 2.56239 36.5786 2.56536C36.5873 2.60844 36.5932 2.63964 36.6019 2.67083C37.5961 6.31017 38.5917 9.94802 39.5829 13.5874C39.6106 13.6899 39.65 13.724 39.761 13.724C40.9829 13.7211 42.2033 13.724 43.4251 13.724C43.4689 13.724 43.501 13.724 43.501 13.724M57.6613 10.7531C57.6613 10.7531 57.597 10.7531 57.5576 10.7531C56.435 10.7531 55.3124 10.7531 54.1884 10.7472C54.0876 10.7472 54.0511 10.7769 54.0278 10.872C53.8365 11.6132 53.6409 12.3544 53.4468 13.0942C53.3928 13.2977 53.3417 13.5012 53.2862 13.7136C53.33 13.7166 53.3621 13.7211 53.3928 13.7211C54.5081 13.7225 55.6219 13.7225 56.7372 13.727C56.8233 13.727 56.854 13.6988 56.8759 13.62C57.1036 12.8134 57.3343 12.0083 57.5649 11.2032C57.6058 11.0591 57.6467 10.9136 57.6934 10.7531" fill="currentColor"/>
+<path d="M27.614 0.00148548C27.8563 0.0252526 28.0986 0.0460488 28.3409 0.0742722C30.1759 0.288176 31.8591 0.88681 33.2985 2.06922C34.8853 3.37344 35.7992 5.05794 36.0561 7.08706C36.2809 8.85622 35.9991 10.5377 35.078 12.0782C33.9189 14.0167 32.2051 15.2169 30.0051 15.7353C29.2387 15.9165 28.4592 16.0146 27.6694 15.9982C27.0125 15.9834 26.3527 16.0012 25.6987 15.9418C23.9381 15.7799 22.3104 15.2421 20.9207 14.1162C19.0726 12.6189 18.0886 10.6789 18.0229 8.30661C17.9631 6.1542 18.6098 4.23946 20.1119 2.65449C21.2141 1.4899 22.5805 0.766489 24.1221 0.356507C24.833 0.167855 25.5571 0.0594178 26.2928 0.0193108C26.341 0.0163399 26.3877 0.00742722 26.4344 0C26.8271 0 27.2198 0 27.614 0M27.1439 12.4406C27.4227 12.4124 27.7045 12.4035 27.9804 12.3544C29.573 12.0767 30.6781 11.2003 31.1978 9.66282C31.5569 8.59924 31.5482 7.51635 31.1818 6.45129C30.7686 5.24808 29.9526 4.41029 28.7555 3.9602C27.9307 3.64974 27.0753 3.57844 26.2096 3.73589C24.7381 4.00476 23.6695 4.80838 23.1338 6.21064C22.6024 7.6025 22.7075 8.98842 23.3819 10.3149C23.8024 11.1423 24.4724 11.7246 25.3337 12.0811C25.9118 12.3203 26.5176 12.4183 27.1424 12.4376" fill="currentColor"/>
+<path d="M0 2.53268C0.0364955 2.52971 0.0715311 2.52525 0.108027 2.52525C1.1591 2.52525 2.20871 2.52823 3.25977 2.52674C3.34298 2.52674 3.38532 2.54159 3.40722 2.63518C3.79553 4.29739 4.20136 5.95663 4.57361 7.62181C4.71959 8.27541 4.79258 8.94386 4.90207 9.60488C4.90791 9.63756 4.94294 9.66579 4.96338 9.69698C4.98382 9.66876 5.0174 9.64202 5.02323 9.61083C5.29476 8.00506 5.79402 6.45871 6.2451 4.90048C6.46262 4.15033 6.68451 3.40018 6.90056 2.64855C6.92684 2.55942 6.96187 2.5312 7.0553 2.5312C8.15454 2.53565 9.25233 2.53565 10.3516 2.53714C10.4187 2.53714 10.4698 2.53714 10.4917 2.62329C10.9151 4.29739 11.3545 5.96852 11.7632 7.64707C11.918 8.28581 12.0026 8.94089 12.1209 9.58854C12.1267 9.61974 12.1588 9.64648 12.1778 9.6747C12.1997 9.64648 12.2347 9.62122 12.2391 9.59151C12.4508 7.99763 12.8683 6.44831 13.2683 4.89602C13.4595 4.15479 13.6508 3.41355 13.8362 2.66934C13.861 2.56982 13.9018 2.54011 14.004 2.54011C15.058 2.54457 16.1135 2.54457 17.1675 2.54605C17.2069 2.54605 17.2463 2.54605 17.3003 2.54605C17.2156 2.85205 17.1353 3.1432 17.0536 3.43286C16.1149 6.78105 15.1734 10.1292 14.2391 13.4789C14.2026 13.6082 14.1544 13.6512 14.0157 13.6512C12.7121 13.6438 11.4085 13.6438 10.1063 13.6453C10.0085 13.6453 9.96326 13.6319 9.9472 13.5161C9.77348 12.2549 9.60268 10.9938 9.40561 9.73709C9.34138 9.32562 9.18956 8.92901 9.09905 8.52051C8.95161 7.85057 8.82314 7.17618 8.68592 6.50476C8.68154 6.48099 8.683 6.45574 8.67278 6.43494C8.65526 6.39781 8.63045 6.36216 8.60855 6.32651C8.58519 6.36067 8.55016 6.39335 8.5414 6.43197C8.50052 6.63102 8.46695 6.83156 8.43191 7.03209C8.28739 7.85503 8.05966 8.65568 7.85236 9.46377C7.59689 10.4516 7.43777 11.4647 7.1896 12.454C7.10202 12.803 7.04216 13.1566 6.98523 13.5116C6.96917 13.6141 6.94144 13.6453 6.84801 13.6453C5.613 13.6408 4.378 13.6394 3.14299 13.6423C3.04664 13.6423 3.02328 13.5992 3.00285 13.5235C2.09776 10.2065 1.19413 6.8984 0.289044 3.58883C0.207294 3.28877 0.125544 2.98871 0.0437945 2.68865C0.0335758 2.65152 0.0145982 2.61587 0 2.58022C0 2.56388 0 2.59061 0 2.59061" fill="currentColor"/>
+<path d="M59.9985 2.62775C59.8861 3.01397 59.7708 3.40018 59.6613 3.7864C59.127 5.66994 58.5913 7.55348 58.0614 9.43703C58.0322 9.54398 57.9913 9.57963 57.876 9.57815C56.7855 9.5722 55.695 9.5722 54.6045 9.57072C54.5607 9.57072 54.5169 9.57072 54.4585 9.57072C54.5417 9.26323 54.622 8.96911 54.7023 8.675C55.2483 6.68302 55.7943 4.69103 56.3373 2.69757C56.3636 2.6025 56.4015 2.57576 56.4994 2.57576C57.6176 2.58022 58.7358 2.58022 59.8555 2.5817C59.9036 2.5817 59.9518 2.58022 60 2.57873C60 2.59507 60 2.58913 60 2.58913" fill="currentColor"/>
+</svg>
+
+</span>
+<span class="brand-logo h-5 w-auto inline-block [&_svg]:w-full [&_svg]:h-full [&_svg]:block" data-brand-logo="wabco" role="img" aria-label="Wabco">
+  <svg width="78" height="32" viewBox="0 0 78 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_16177_856-u1177)">
+<mask id="mask0_16177_856-u1177" style="mask-type:luminance" maskUnits="userSpaceOnUse" x="39" y="0" width="39" height="23">
+<path d="M67.6293 0.190077C67.0468 0.408106 66.6315 0.821803 66.6315 0.821803L57.8988 9.28022L51.7155 3.28721C51.7155 3.28721 50.4005 1.92313 48.324 1.92313C46.2475 1.92313 44.9382 3.2928 44.9382 3.2928L39.5452 8.51991L46.2879 15.0552L48.3355 13.0706L57.9276 22.3676L77.3829 3.52201C77.3829 3.52201 77.9943 2.98532 78.0001 2.10762V2.07966C78.0001 1.85045 77.954 1.59888 77.8501 1.33054C77.3368 0.00559062 75.8775 0 75.8775 0H68.6964C68.6964 0 68.6733 0 68.6329 0C68.483 0 68.0908 0.0167715 67.6293 0.190077Z" fill="white"/>
+</mask>
+<g mask="url(#mask0_16177_856-u1177)">
+<path d="M78 0H39.5566V22.3732H78V0Z" fill="url(#paint0_linear_16177_856-u1177)"/>
+</g>
+<mask id="mask1_16177_856-u1177" style="mask-type:luminance" maskUnits="userSpaceOnUse" x="0" y="0" width="78" height="32">
+<path d="M78 0H0.536377V32H78V0Z" fill="white"/>
+</mask>
+<g mask="url(#mask1_16177_856-u1177)">
+<path d="M64.1281 30.7812H65.6508L64.5549 28.9587C65.1605 28.7128 65.5066 28.2376 65.5066 27.6114C65.5066 26.6778 64.8721 26.0629 63.6205 26.0629H61.2153V30.7812H62.5361V29.1488H63.2052L64.1281 30.7812ZM64.1858 27.6114C64.1858 27.9469 63.9493 28.1873 63.459 28.1873H62.5361V27.0412H63.459C63.9493 27.0412 64.1858 27.2816 64.1858 27.617M58.8504 27.399V28.9084C58.8504 29.5905 58.5043 29.8309 58.0602 29.8309C57.6161 29.8309 57.2642 29.5905 57.2642 28.914V27.399H55.9145V28.9755C55.9145 30.2166 56.624 30.8986 58.0602 30.8986C59.4964 30.8986 60.2001 30.2166 60.2001 28.9811V27.399H58.8504ZM57.2584 26.0685H55.9087V26.9573H57.2584V26.0685ZM58.8504 26.9573H60.2001V26.0685H58.8504V26.9573ZM50.3427 29.1935L49.662 26.0685H48.3181L49.5582 30.7868H50.9829L51.8193 27.7121L52.6498 30.7868H54.0745L55.3146 26.0685H53.9707L53.2901 29.1935L52.4422 26.0685H51.1906L50.3427 29.1935ZM73.5817 27.7568H71.9436V26.0685H70.5939V30.7868H71.9436V28.8246H73.5817V30.7868H74.9372V26.0685H73.5817V27.7568ZM67.2601 27.0971V30.7868H68.6098V27.0971H69.8614V26.0685H66.0027V27.0971H67.2543H67.2601Z" fill="currentColor"/>
+<path d="M46.282 27.4996H39.3027V24.6038H42.204V25.7442H43.3749V24.6038H46.2762V27.4996H46.282ZM43.3807 30.8651V32C45.0476 31.6981 46.282 30.2837 46.282 28.7016V28.6401H39.3027V28.7016C39.3027 30.2837 40.5371 31.6925 42.204 32V30.8651H43.3749H43.3807Z" fill="#ED1D24"/>
+<path d="M27.9341 29.0482C27.9571 29.8364 27.9918 30.7756 26.3537 30.7868H24.7213C23.0602 30.7924 23.1928 29.6128 23.1409 28.9811V27.248C23.1409 26.5716 23.4351 26.0069 24.7271 26.0181H26.2383C27.6572 26.0125 27.9398 26.5716 27.9398 27.248V27.5834H26.0653C26.0653 27.1642 25.973 26.9014 25.6961 26.8679H25.3904C25.1136 26.8679 25.0213 27.1977 25.0213 27.617V28.696C25.0501 29.1208 25.0328 29.8029 25.4366 29.8029H25.6557C25.9787 29.8085 26.0364 29.473 26.0537 29.0482H27.9341Z" fill="#005BAA"/>
+<path d="M7.93659 27.863L7.48092 30.8092H4.7123L3.67407 26.1746H5.46214L6.03893 29.5122L6.75993 26.1746H9.10748L9.82271 29.5122L10.4053 26.1746H12.1933L11.1609 30.8092H8.38649L7.93659 27.863Z" fill="#005BAA"/>
+<path fill-rule="evenodd" clip-rule="evenodd" d="M15.3196 30.1159L15.5041 30.7868H17.4652L15.9886 26.1411H13.3181L11.8992 30.7868H13.7968L13.9641 30.1159H15.3253H15.3196ZM14.2121 29.1935L14.662 27.5387L15.0888 29.1935H14.2121Z" fill="#005BAA"/>
+<path fill-rule="evenodd" clip-rule="evenodd" d="M21.3413 30.7868H17.8113V26.1355H21.797C22.2757 26.1187 22.6506 26.3871 22.6449 27.002V27.4157C22.6449 27.4157 22.6737 28.1816 21.9527 28.2767C22.7198 28.4667 22.7025 29.2997 22.7025 29.2997V29.6743C22.691 30.7253 21.8143 30.8036 21.3471 30.7868M19.7897 27.9301V26.9853H20.3377C20.5107 26.9853 20.6549 27.125 20.6549 27.2927V27.6226C20.6549 27.7903 20.5107 27.9301 20.3377 27.9301H19.7897ZM19.7897 29.7973V28.8189H20.3492C20.5223 28.8189 20.6665 28.9587 20.6665 29.1264V29.4898C20.6665 29.6575 20.5338 29.8141 20.3608 29.7973H19.7897Z" fill="#005BAA"/>
+<path fill-rule="evenodd" clip-rule="evenodd" d="M29.9702 30.7868C28.4128 30.7868 28.4186 29.6519 28.3897 28.9811V27.248C28.3897 26.5716 28.9608 26.0181 29.6587 26.0181H32.2658C32.9637 26.0181 33.5348 26.5716 33.5348 27.248V28.9811C33.529 29.6407 33.5175 30.7812 31.9486 30.7868H29.9702ZM30.7719 29.7861C30.3681 29.7861 30.322 29.1208 30.322 28.6904V27.589C30.322 27.1697 30.4143 26.8343 30.6912 26.8399H31.2391C31.5102 26.8399 31.6429 27.1697 31.6313 27.589V28.6904C31.6313 29.1041 31.6083 29.7805 31.1987 29.7861H30.7719Z" fill="#005BAA"/>
+</g>
+<mask id="mask2_16177_856-u1177" style="mask-type:luminance" maskUnits="userSpaceOnUse" x="0" y="0" width="46" height="21">
+<path d="M19.5073 9.30258L10.7573 0.821803C10.7573 0.821803 10.3709 0.391335 9.93829 0.195667C9.51146 0 9.02118 0 9.02118 0H3.43781C3.28207 0 1.48824 0.0391336 0.761479 1.75542C0.000109076 3.54997 1.40172 4.80224 1.40172 4.80224L16.1388 19.0748C16.1388 19.0748 17.477 20.4724 19.5189 20.4724C21.5607 20.4724 22.8989 19.086 22.8989 19.086L29.0821 13.0874L35.3 19.1139C35.3 19.1139 36.5631 20.4724 38.6915 20.4724C40.8199 20.4724 42.1177 19.1195 42.1177 19.1195L45.4689 15.8658L29.1052 0L19.5073 9.30258Z" fill="white"/>
+</mask>
+<g mask="url(#mask2_16177_856-u1177)">
+<path d="M45.4688 0H0V20.4724H45.4688V0Z" fill="url(#paint1_linear_16177_856-u1177)"/>
+</g>
+</g>
+<defs>
+<linearGradient id="paint0_linear_16177_856-u1177" x1="78.161" y1="11.1592" x2="39.7176" y2="11.1592" gradientUnits="userSpaceOnUse">
+<stop stop-color="#ED1C24"/>
+<stop offset="0.35" stop-color="#ED1C24"/>
+<stop offset="0.43" stop-color="#D8181F"/>
+<stop offset="0.82" stop-color="#790608"/>
+<stop offset="1" stop-color="#540000"/>
+</linearGradient>
+<linearGradient id="paint1_linear_16177_856-u1177" x1="1.53197" y1="12.5417" x2="46.4643" y2="12.5417" gradientUnits="userSpaceOnUse">
+<stop stop-color="#005BAB"/>
+<stop offset="0.35" stop-color="#005BAB"/>
+<stop offset="0.49" stop-color="#004C97"/>
+<stop offset="0.78" stop-color="#002865"/>
+<stop offset="1" stop-color="#000A3C"/>
+</linearGradient>
+<clipPath id="clip0_16177_856-u1177">
+<rect width="78" height="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+
+</span>
+
+    </a>
+  </div>
+
+  <ul class="menu p-4 w-full text-base-content flex-1 gap-4">
+    <li>
+      <a id="automechanika-nav-home" href="/diagnostics-pub/diagnostics-platform/" data-automechanika-home-link class="gap-3 ">
+        <span data-nav-home-cars class="contents">
+<span class="icon icon-obd-male w-6 h-6 inline-block shrink-0 [&_svg]:w-full [&_svg]:h-full [&_svg]:block" role="img" aria-hidden="true">
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M5.00002 12H19M6.00002 9L6.00004 10M9 9L9.00002 10M12 9L12 10M15 9L15 10M18 9L18 10M6.00002 14L6.00004 15M9 14L9.00002 15M12 14L12 15M15 14L15 15M18 14L18 15M5.48808 17H18.512C19.3952 17 20.1738 16.4207 20.4276 15.5747L22.2276 9.5747C22.6126 8.29147 21.6517 7 20.312 7H3.68808C2.34835 7 1.38746 8.29147 1.77243 9.5747L3.57243 15.5747C3.82622 16.4207 4.60486 17 5.48808 17Z" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
+
+</span>
+</span>
+        <span data-nav-home-trucks class="contents hidden">
+<span class="icon icon-obd-9pin w-6 h-6 inline-block shrink-0 [&_svg]:w-full [&_svg]:h-full [&_svg]:block" role="img" aria-hidden="true">
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12Z" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M13 12C13 12.5523 12.5523 13 12 13C11.4477 13 11 12.5523 11 12C11 11.4477 11.4477 11 12 11C12.5523 11 13 11.4477 13 12Z" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M7 12C7 12.5523 6.55228 13 6 13C5.44772 13 5 12.5523 5 12C5 11.4477 5.44772 11 6 11C6.55228 11 7 11.4477 7 12Z" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M19 12C19 12.5523 18.5523 13 18 13C17.4477 13 17 12.5523 17 12C17 11.4477 17.4477 11 18 11C18.5523 11 19 11.4477 19 12Z" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M13 6C13 6.55228 12.5523 7 12 7C11.4477 7 11 6.55228 11 6C11 5.44772 11.4477 5 12 5C12.5523 5 13 5.44772 13 6Z" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M13 18C13 18.5523 12.5523 19 12 19C11.4477 19 11 18.5523 11 18C11 17.4477 11.4477 17 12 17C12.5523 17 13 17.4477 13 18Z" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M9 16C9 16.5523 8.55228 17 8 17C7.44772 17 7 16.5523 7 16C7 15.4477 7.44772 15 8 15C8.55228 15 9 15.4477 9 16Z" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M17 16C17 16.5523 16.5523 17 16 17C15.4477 17 15 16.5523 15 16C15 15.4477 15.4477 15 16 15C16.5523 15 17 15.4477 17 16Z" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M9 8C9 8.55228 8.55228 9 8 9C7.44772 9 7 8.55228 7 8C7 7.44772 7.44772 7 8 7C8.55228 7 9 7.44772 9 8Z" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M17 8C17 8.55228 16.5523 9 16 9C15.4477 9 15 8.55228 15 8C15 7.44772 15.4477 7 16 7C16.5523 7 17 7.44772 17 8Z" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
+
+</span>
+</span>
+        <span>Diagnostics</span>
+      </a>
+    </li>
+    <li>
+      <a href="/diagnostics-pub/diagnostics-platform/my-garage/" class="gap-3 ">
+        
+<span class="icon icon-garage w-6 h-6 inline-block shrink-0 [&_svg]:w-full [&_svg]:h-full [&_svg]:block" role="img" aria-hidden="true">
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M12.002 3.77888C12.1982 3.77888 12.3863 3.80896 12.5665 3.86913C12.7467 3.92946 12.9193 4.01988 13.0845 4.14038L18.777 8.42888C19.0028 8.59454 19.1798 8.80546 19.308 9.06163C19.436 9.31763 19.5 9.58871 19.5 9.87488V19.4711C19.5 19.6836 19.4281 19.8617 19.2843 20.0054C19.1404 20.1492 18.9622 20.2211 18.7498 20.2211C18.5371 20.2211 18.359 20.1492 18.2155 20.0054C18.0718 19.8617 18 19.6836 18 19.4711V9.87488C18 9.82371 17.9888 9.77729 17.9663 9.73563C17.9439 9.69396 17.9135 9.65704 17.875 9.62488L12.1828 5.34613C12.1314 5.30129 12.0705 5.27888 12 5.27888C11.9295 5.27888 11.8686 5.30129 11.8173 5.34613L6.125 9.62488C6.0865 9.65704 6.05608 9.69396 6.03375 9.73563C6.01125 9.77729 6 9.82371 6 9.87488V19.4711C6 19.6836 5.92808 19.8617 5.78425 20.0054C5.64042 20.1492 5.46225 20.2211 5.24975 20.2211C5.03708 20.2211 4.859 20.1492 4.7155 20.0054C4.57183 19.8617 4.5 19.6836 4.5 19.4711V9.87488C4.5 9.58871 4.564 9.31763 4.692 9.06163C4.82017 8.80546 4.99717 8.59454 5.223 8.42888L10.9155 4.14038C11.0815 4.01988 11.255 3.92946 11.436 3.86913C11.6172 3.80896 11.8058 3.77888 12.002 3.77888ZM8.75 18.7116H15.25V16.2114H8.75V18.7116ZM8.75 14.7116H15.25V12.2114H8.75V14.7116ZM8.15375 20.2114C7.89775 20.2114 7.68308 20.1248 7.50975 19.9516C7.33658 19.7785 7.25 19.5638 7.25 19.3076V11.6154C7.25 11.3592 7.33658 11.1445 7.50975 10.9714C7.68308 10.7982 7.89775 10.7116 8.15375 10.7116H15.8462C16.1022 10.7116 16.3169 10.7982 16.4902 10.9714C16.6634 11.1445 16.75 11.3592 16.75 11.6154V19.3076C16.75 19.5638 16.6634 19.7785 16.4902 19.9516C16.3169 20.1248 16.1022 20.2114 15.8462 20.2114H8.15375Z" fill="currentColor"/>
+</svg>
+
+</span>
+
+        <span>Garage</span>
+        <span class="badge badge-outline badge-warning badge-xs normal-case font-normal">Concept</span>
+      </a>
+    </li>
+    <li>
+      <a href="/diagnostics-pub/diagnostics-platform/tech-data/" class="gap-3 ">
+        
+<span class="icon icon-book-open w-6 h-6 inline-block shrink-0 [&_svg]:w-full [&_svg]:h-full [&_svg]:block" role="img" aria-hidden="true">
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true">
+  <path stroke-linecap="round" stroke-linejoin="round" d="M12 6.042A8.967 8.967 0 0 0 6 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 0 1 6 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 0 1 6-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0 0 18 18a8.967 8.967 0 0 0-6 2.292m0-14.25v14.25" />
+</svg>
+
+</span>
+
+        <span>Technical Data</span>
+      </a>
+    </li>
+    <li data-nav-wabco-only class="hidden">
+      <a href="/diagnostics-pub/diagnostics-platform/oem-integration/" class="gap-3 ">
+        
+<span class="icon icon-grid w-6 h-6 inline-block shrink-0 [&_svg]:w-full [&_svg]:h-full [&_svg]:block" role="img" aria-hidden="true">
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M10 3H3V10H10V3Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M21 3H14V10H21V3Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M21 14H14V21H21V14Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M10 14H3V21H10V14Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
+
+</span>
+
+        <span>OEM Integrations</span>
+      </a>
+    </li>
+    <li>
+      <a href="/diagnostics-pub/diagnostics-platform/settings/" class="gap-3 ">
+        
+<span class="icon icon-sliders w-6 h-6 inline-block shrink-0 [&_svg]:w-full [&_svg]:h-full [&_svg]:block" role="img" aria-hidden="true">
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M4 21V14M4 10V3M12 21V12M12 8V3M20 21V16M20 12V3M1 14H7M9 8H15M17 16H23" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
+
+</span>
+
+        <span>Settings</span>
+      </a>
+    </li>
+  </ul>
+
+  <div class="p-4 border-t border-base-300 shrink-0 flex flex-col gap-2">
+    <button type="button" class="notifications-bell-trigger btn btn-ghost justify-start gap-3 w-full" aria-label="Notifications" aria-haspopup="dialog">
+      <div class="indicator">
+        <span class="notifications-badge indicator-item badge badge-warning badge-sm hidden">0</span>
+        
+<span class="icon icon-bell w-5 h-5 text-base-content inline-block shrink-0 [&_svg]:w-full [&_svg]:h-full [&_svg]:block" role="img" aria-hidden="true">
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+  <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+  <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+</svg>
+
+</span>
+
+      </div>
+      <span>Notifications</span>
+    </button>
+
+    
+    <details class="dropdown dropdown-top w-full">
+      <summary class="btn btn-ghost justify-start gap-3 w-full list-none" aria-label="Profile" aria-haspopup="menu">
+        <div class="avatar">
+          <div class="w-6 rounded-full ring-2 ring-base-200">
+            <img src="/diagnostics-pub/assets/images/tinkerer.png" alt="" width="24" height="24" />
+          </div>
+        </div>
+        <span>Profile</span>
+      </summary>
+      <ul class="dropdown-content menu bg-base-100 rounded-box z-50 w-56 border border-base-200 p-2 shadow-lg mb-2" role="menu">
+        <li role="none"><a href="/diagnostics-pub/diagnostics-platform/internal-demo-controls/" role="menuitem">Internal demo controls</a></li>
+      </ul>
+    </details>
+
+    
+    <label class="btn btn-ghost justify-start gap-3 w-full" id="automechanika-theme-toggle" aria-label="Toggle light/dark mode">
+      <span class="swap swap-rotate">
+        <input type="checkbox" id="automechanika-theme-toggle-input" />
+        
+<span class="icon icon-sun swap-off w-5 h-5 text-base-content inline-block shrink-0 [&_svg]:w-full [&_svg]:h-full [&_svg]:block" role="img" aria-hidden="true">
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true">
+  <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v2.25m6.364.386-1.591 1.591M21 12h-2.25m-.386 6.364-1.591-1.591M12 18.75V21m-4.773-4.227-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0Z" />
+</svg>
+
+</span>
+
+        
+<span class="icon icon-moon swap-on w-5 h-5 text-base-content inline-block shrink-0 [&_svg]:w-full [&_svg]:h-full [&_svg]:block" role="img" aria-hidden="true">
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true">
+  <path stroke-linecap="round" stroke-linejoin="round" d="M21.752 15.002A9.72 9.72 0 0 1 18 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 0 0 3 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 0 0 9.002-5.998Z" />
+</svg>
+
+</span>
+
+      </span>
+      <span id="automechanika-theme-toggle-label">Light mode</span>
+    </label>
+  </div>
+</aside>
+<script src="/diagnostics-pub/assets/scripts/automechanika-theme-toggle.js"></script>
+<script src="/diagnostics-pub/assets/scripts/diagnostics-platform-nav.js"></script>
+<script>
+(function () {
+  // Profile is a native <details> dropdown, which only closes on a second click of its own
+  // summary — clicking anywhere else (main content, another sidebar item) left it open. Same
+  // outside-click-close as launchpad-2-sidebar.njk's Profile/Theme dropdowns.
+  document.addEventListener('click', function (e) {
+    document.querySelectorAll('.automechanika-sidebar details[open]').forEach(function (d) {
+      if (!d.contains(e.target)) d.removeAttribute('open');
+    });
+  });
+})();
+</script>
+
+  </div>
+
+  
+  <div id="onboarding-tutorial-step1-backdrop" class="fixed inset-0 z-[28] bg-black/50 opacity-0 pointer-events-none transition-opacity duration-200 ease-out" aria-hidden="true"></div>
+
+  
+  <div id="onboarding-right-drawer" class="onboarding-right-drawer fixed top-0 right-0 bottom-0 w-80 max-w-full bg-base-200 border-l border-base-300 shadow-lg z-30 translate-x-full transition-transform duration-200 ease-out flex flex-col" role="dialog" aria-label="Onboarding tutorial" aria-hidden="true">
+    <div class="flex items-center justify-between p-4 border-b border-base-300 shrink-0">
+      <div class="flex items-center gap-2 leading-tight">
+        <span class="text-primary -mb-0.5 shrink-0">
+<span class="icon icon-help w-5 h-5 inline-block shrink-0 [&_svg]:w-full [&_svg]:h-full [&_svg]:block" role="img" aria-hidden="true">
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M4.93 4.93L9.17 9.17M14.83 14.83L19.07 19.07M19.07 4.93L14.83 9.17L18.36 5.64M4.93 19.07L9.17 14.83M22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12ZM16 12C16 14.2091 14.2091 16 12 16C9.79086 16 8 14.2091 8 12C8 9.79086 9.79086 8 12 8C14.2091 8 16 9.79086 16 12Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
+
+</span>
+</span>
+        <h2 class="text-lg font-semibold text-base-content leading-tight">Tutorial</h2>
+      </div>
+      <button type="button" id="onboarding-drawer-close" class="btn btn-ghost btn-sm btn-square" aria-label="Close">
+        
+<span class="icon icon-close w-5 h-5 inline-block shrink-0 [&_svg]:w-full [&_svg]:h-full [&_svg]:block" role="img" aria-hidden="true">
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true">
+  <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+</svg>
+
+</span>
+
+      </button>
+    </div>
+    <div id="onboarding-drawer-content" class="flex-1 min-h-0 flex flex-col">
+      <div class="flex-1 overflow-auto p-4 text-base-content/90">
+        <div id="onboarding-drawer-step"></div>
+      </div>
+      <div class="flex flex-col gap-2 shrink-0 p-4 pt-0">
+        <button type="button" id="onboarding-drawer-next" class="btn btn-primary btn-block">Next</button>
+        <div id="onboarding-drawer-footer-actions" class="flex gap-2">
+          <button type="button" id="onboarding-drawer-restart" class="btn btn-neutral flex-1">Restart</button>
+          <button type="button" id="onboarding-drawer-skip" class="btn btn-ghost flex-1">Skip Tutorial</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  
+  <div id="onboarding-welcome-hub-backdrop" class="fixed inset-0 z-[31] bg-black/50 opacity-0 pointer-events-none transition-opacity duration-200 ease-out" aria-hidden="true"></div>
+
+  
+  <div id="onboarding-welcome-hub-drawer" class="onboarding-welcome-hub-drawer fixed top-0 right-0 bottom-0 w-80 max-w-full bg-base-200 border-l border-base-300 shadow-lg z-[32] translate-x-full transition-transform duration-200 ease-out flex flex-col" role="dialog" aria-labelledby="onboarding-welcome-hub-title" aria-hidden="true">
+    <div class="flex items-center justify-between p-4 border-b border-base-300 shrink-0">
+      <div class="flex items-center gap-2 leading-tight">
+        <span class="text-primary -mb-0.5 shrink-0">
+<span class="icon icon-help w-5 h-5 inline-block shrink-0 [&_svg]:w-full [&_svg]:h-full [&_svg]:block" role="img" aria-hidden="true">
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M4.93 4.93L9.17 9.17M14.83 14.83L19.07 19.07M19.07 4.93L14.83 9.17L18.36 5.64M4.93 19.07L9.17 14.83M22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12ZM16 12C16 14.2091 14.2091 16 12 16C9.79086 16 8 14.2091 8 12C8 9.79086 9.79086 8 12 8C14.2091 8 16 9.79086 16 12Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
+
+</span>
+</span>
+        <h2 id="onboarding-welcome-hub-title" class="text-lg font-semibold text-base-content leading-tight">How it works</h2>
+      </div>
+      <button type="button" id="onboarding-welcome-hub-close" class="btn btn-ghost btn-sm btn-square" aria-label="Close">
+        
+<span class="icon icon-close w-5 h-5 inline-block shrink-0 [&_svg]:w-full [&_svg]:h-full [&_svg]:block" role="img" aria-hidden="true">
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true">
+  <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+</svg>
+
+</span>
+
+      </button>
+    </div>
+    <div class="flex-1 min-h-0 overflow-auto p-4 space-y-8 text-base-content min-w-0">
+      <div class="space-y-3 min-w-0">
+        <div class="flex items-center gap-2">
+          <h3 class="text-base font-semibold text-base-content">1. Video tutorial</h3>
+          <span class="text-success shrink-0 hidden pt-2" id="onboarding-hub-check-video" aria-label="Watched">
+<span class="icon icon-success w-4 h-4 inline-block shrink-0 [&_svg]:w-full [&_svg]:h-full [&_svg]:block" role="img" aria-hidden="true">
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+  <circle cx="12" cy="12" r="10"/>
+  <path d="m9 12 2 2 4-4"/>
+</svg>
+
+</span>
+</span>
+        </div>
+        <p class="text-sm text-base-content/80">Watch how to connect and pair your VCI device.</p>
+        <div class="w-full aspect-video bg-base-300 rounded-box overflow-hidden border border-base-300">
+          <video id="onboarding-video-player" class="w-full h-full object-contain bg-black" controls preload="metadata" poster="/diagnostics-pub/assets/images/vci-pairing-tutorial-poster.png">
+            <source src="/diagnostics-pub/assets/videos/vci-pairing-tutorial.mp4" type="video/mp4" />
+            <p class="p-4 text-base-content/80 text-sm">Your browser does not support the video tag.</p>
+          </video>
+        </div>
+      </div>
+      <div class="divider my-0"></div>
+      <div class="space-y-3">
+        <div class="flex items-center gap-2">
+          <h3 class="text-base font-semibold text-base-content">2. See main options</h3>
+          <span class="text-success shrink-0 hidden pt-2" id="onboarding-hub-check-options" aria-label="Seen">
+<span class="icon icon-success w-4 h-4 inline-block shrink-0 [&_svg]:w-full [&_svg]:h-full [&_svg]:block" role="img" aria-hidden="true">
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+  <circle cx="12" cy="12" r="10"/>
+  <path d="m9 12 2 2 4-4"/>
+</svg>
+
+</span>
+</span>
+        </div>
+        <p class="text-sm text-base-content/80">Explore the main actions and where to find them.</p>
+        <button type="button" id="onboarding-cta-see-options" class="btn btn-primary w-full">2. See the options</button>
+      </div>
+      <div class="divider my-0"></div>
+      <div class="space-y-3">
+        <div class="flex items-center gap-2">
+          <h3 class="text-base font-semibold text-base-content">3. Demo tutorial</h3>
+          <span class="text-success shrink-0 hidden pt-2" id="onboarding-hub-check-demo" aria-label="Seen">
+<span class="icon icon-success w-4 h-4 inline-block shrink-0 [&_svg]:w-full [&_svg]:h-full [&_svg]:block" role="img" aria-hidden="true">
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+  <circle cx="12" cy="12" r="10"/>
+  <path d="m9 12 2 2 4-4"/>
+</svg>
+
+</span>
+</span>
+        </div>
+        <p class="text-sm text-base-content/80">Follow a guided walkthrough including a full system scan.</p>
+        <button type="button" id="onboarding-cta-show-me-how" class="btn btn-neutral w-full">3. Demo tutorial</button>
+      </div>
+    </div>
+  </div>
+
+  
+  <button type="button" id="onboarding-help-fab" class="onboarding-help-fab fixed bottom-6 right-6 btn btn-circle btn-primary btn-lg shadow-lg z-20 hidden" aria-label="Help">
+    
+<span class="icon icon-help w-6 h-6 inline-block shrink-0 [&_svg]:w-full [&_svg]:h-full [&_svg]:block" role="img" aria-hidden="true">
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M4.93 4.93L9.17 9.17M14.83 14.83L19.07 19.07M19.07 4.93L14.83 9.17L18.36 5.64M4.93 19.07L9.17 14.83M22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12ZM16 12C16 14.2091 14.2091 16 12 16C9.79086 16 8 14.2091 8 12C8 9.79086 9.79086 8 12 8C14.2091 8 16 9.79086 16 12Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
+
+</span>
+
+  </button>
+
+  
+  <div id="notification-panel-backdrop" class="fixed inset-0 z-[33] bg-black/50 opacity-0 pointer-events-none transition-opacity duration-200 ease-out" aria-hidden="true"></div>
+  <div id="notification-panel" class="fixed top-0 right-0 bottom-0 w-80 max-w-full bg-base-200 border-l border-base-300 shadow-lg z-[34] translate-x-full transition-transform duration-200 ease-out flex flex-col" role="dialog" aria-label="Notifications" aria-hidden="true">
+    <div class="flex items-center justify-between p-4 border-b border-base-300 shrink-0">
+      <div class="flex items-center gap-2 leading-tight">
+        <span class="text-primary -mb-0.5 shrink-0">
+<span class="icon icon-bell w-5 h-5 inline-block shrink-0 [&_svg]:w-full [&_svg]:h-full [&_svg]:block" role="img" aria-hidden="true">
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+  <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+  <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+</svg>
+
+</span>
+</span>
+        <h2 class="text-lg font-semibold text-base-content leading-tight">Notifications</h2>
+      </div>
+      <div class="flex items-center gap-1 shrink-0">
+        <button type="button" id="notification-panel-clear-all" class="btn btn-ghost btn-xs text-base-content/60 hover:text-base-content hidden">Clear all</button>
+        <button type="button" id="notification-panel-close" class="btn btn-ghost btn-sm btn-square" aria-label="Close">
+          
+<span class="icon icon-close w-5 h-5 inline-block shrink-0 [&_svg]:w-full [&_svg]:h-full [&_svg]:block" role="img" aria-hidden="true">
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true">
+  <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+</svg>
+
+</span>
+
+        </button>
+      </div>
+    </div>
+    <div id="notification-panel-list" class="flex-1 overflow-auto p-4 flex flex-col gap-3"></div>
+  </div>
+</div>
+
+
+<div id="notification-toast-container" class="toast toast-bottom toast-end z-[60]"></div>
+
+<script src="/diagnostics-pub/assets/scripts/vendor/confetti.browser.min.js"></script>
+<script src="/diagnostics-pub/assets/scripts/onboarding-drawer.js"></script>
+<script src="/diagnostics-pub/assets/scripts/onboarding-waypoint-tour.js"></script>
+<script src="/diagnostics-pub/assets/scripts/notifications.js"></script>
+<script src="/diagnostics-pub/assets/scripts/clearable-input.js"></script>
+
+    
+<div id="prototype-gate-root" class="prototype-gate-root fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm" aria-modal="true" role="dialog" aria-labelledby="prototype-gate-title" aria-describedby="prototype-gate-desc">
+  <div class="card bg-base-100 border border-base-300 shadow-xl w-full max-w-xs sm:max-w-sm">
+    <div class="card-body p-6 sm:p-8">
+      <h2 id="prototype-gate-title" class="card-title text-xl mb-3">Prototype access</h2>
+      <p id="prototype-gate-desc" class="text-sm text-base-content/80 leading-relaxed mb-8">This build is password-protected. Enter the password to continue.</p>
+      <div class="flex flex-col gap-8">
+        <label class="floating-label w-full">
+          <input type="password" id="prototype-gate-input" class="input input-bordered w-full" placeholder="Password" autocomplete="current-password" />
+          <span>Password</span>
+        </label>
+        <div class="flex flex-col gap-3">
+          <p id="prototype-gate-error" class="text-sm text-error leading-snug hidden min-h-0" role="alert">Incorrect password. Try again.</p>
+          <button type="button" id="prototype-gate-submit" class="btn btn-primary btn-block">Continue</button>
+        </div>
+      </div>
+      <noscript><p class="text-sm text-warning mt-6">JavaScript is required to unlock this prototype.</p></noscript>
+    </div>
+  </div>
+</div>
+
+    <script src="/diagnostics-pub/assets/scripts/prototype-gate.js"></script>
+
+</body>
+</html>

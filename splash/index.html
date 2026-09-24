@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="Hi-Tech">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Splash - Diagnostics Platform</title>
+    <script>
+      (function() {
+        // Usability-test / demo links can carry presets as URL params (?theme=&language=&mode=),
+        // generated from Launchpad 2 Settings. Seed localStorage from them before first paint —
+        // same place base.njk already reads 'theme' from — then strip just those keys from the
+        // URL (preserving any other params, e.g. diagnostics-dashboard's vehicle data) so a
+        // bookmarked/reloaded link doesn't keep re-forcing presets after the tester's own
+        // in-session changes.
+        var params = new URLSearchParams(location.search);
+        var PRESET_PARAM_TO_STORAGE_KEY = { theme: 'theme', language: 'language', mode: 'launchpad-onboarding-mode', notif: 'launchpad-notifications-suppressed', vehicleType: 'automechanika-vehicle-type', role: 'automechanika-role' };
+        var paramsChanged = false;
+        Object.keys(PRESET_PARAM_TO_STORAGE_KEY).forEach(function (param) {
+          if (params.has(param)) {
+            var value = params.get(param);
+            // Automechanika's Settings Test Link now generates brand-only theme values ("WOW",
+            // not "WOW Dark" — light/dark is the sidebar footer's own toggle, not part of the
+            // preset link, see automechanika-theme-toggle.js) — resolve those against whichever
+            // mode was last selected on this device, defaulting to Dark if none has been yet.
+            // Full theme names ("Hi-Tech", "WOW Dark", …) pass through unchanged.
+            if (param === 'theme' && /^(Autocom|WOW|Wabco)$/.test(value)) {
+              value = value + ' ' + (localStorage.getItem('theme-mode') || 'Dark');
+            }
+            localStorage.setItem(PRESET_PARAM_TO_STORAGE_KEY[param], value);
+            params.delete(param);
+            paramsChanged = true;
+          }
+        });
+        // ?gate=<issued-at-ms> bypasses the prototype password gate (sessionStorage, same
+        // key/value the gate itself writes on a correct password) for 30 days from when the link
+        // was generated (Settings' Test Link) — runs before the next script block below reads it,
+        // so the gate never flashes. A plain boolean bypass (the old ?gate=1) would work forever
+        // no matter how many times the real password gets rotated, since it never checks the
+        // password at all — this at least puts a shelf life on a shared/bookmarked link. Not real
+        // security either way (a hand-edited timestamp bypasses this too), see prototype-gate.js.
+        var gateParam = params.get('gate');
+        if (gateParam) {
+          var gateIssuedAt = parseInt(gateParam, 10);
+          var GATE_LINK_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
+          if (!isNaN(gateIssuedAt) && (Date.now() - gateIssuedAt) < GATE_LINK_MAX_AGE_MS) {
+            try { sessionStorage.setItem('autocom-prototype-gate', '1'); } catch (e) {}
+          }
+          params.delete('gate');
+          paramsChanged = true;
+        }
+        if (paramsChanged) {
+          var newSearch = params.toString();
+          history.replaceState(null, '', location.pathname + (newSearch ? '?' + newSearch : '') + location.hash);
+        }
+        var saved = localStorage.getItem('theme');
+        document.documentElement.setAttribute('data-theme', saved || 'Hi-Tech');
+        // Role (Admin/User) — for sharing a link with trusted external users while hiding
+        // internal-only Settings sections (data-admin-only, see main.css). Client-side only, same
+        // "not real security" caveat as the password gate (prototype-gate.js) — fine for hiding
+        // UI from a trusted-audience demo link, not an access-control boundary. Defaults to Admin
+        // (today's full-access behavior) so any link without ?role= is unaffected.
+        document.documentElement.setAttribute('data-role', localStorage.getItem('automechanika-role') || 'Admin');
+      })();
+    </script>
+    <script>
+      (function () {
+        try {
+          if (sessionStorage.getItem('autocom-prototype-gate') === '1') {
+            document.documentElement.classList.add('prototype-gate-unlocked');
+          }
+        } catch (e) {}
+      })();
+    </script>
+    <link rel="stylesheet" href="/diagnostics-pub/assets/styles/main.css">
+
+</head>
+<body class="bg-base-100 text-base-content">
+
+    
+<div class="splash-page min-h-screen w-full flex items-center justify-center" data-base-path="/diagnostics-pub/">
+  <div class="splash-particles" aria-hidden="true"></div>
+  <div class="splash-logo w-full max-w-[min(90vmin,24rem)] text-primary relative z-10" aria-hidden="true">
+    <svg width="600" height="600" viewBox="0 0 600 600" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path class="splash-draw" pathLength="1" d="M568.519 300C568.519 151.701 448.299 31.4815 300 31.4815C151.701 31.4815 31.4815 151.701 31.4815 300C31.4815 448.299 151.701 568.519 300 568.519C448.299 568.519 568.519 448.299 568.519 300ZM447.132 195.17C492.43 195.17 524.509 239.419 510.422 282.472L479.2 377.896C469.666 407.033 442.482 426.741 411.825 426.741H352.904L345.981 436.424C343.964 439.245 340.711 440.918 337.244 440.919H261.377C257.731 440.918 254.334 439.069 252.356 436.007L246.368 426.741H188.415C157.757 426.741 130.574 407.033 121.04 377.896L89.8175 282.472C75.7309 239.419 107.81 195.17 153.108 195.17H447.132ZM153.108 216.652C122.422 216.652 100.691 246.627 110.234 275.791L141.457 371.216C148.102 391.524 167.048 405.259 188.415 405.259H252.216C255.862 405.259 259.259 407.109 261.238 410.171L267.225 419.437H331.719L338.642 409.754L338.834 409.492C340.862 406.83 344.021 405.259 347.379 405.259H411.825C433.192 405.259 452.139 391.524 458.783 371.217L490.006 275.791C499.549 246.627 477.818 216.652 447.132 216.652H153.108ZM174.239 369.6V352.844C174.239 346.912 179.047 342.104 184.979 342.104C190.911 342.104 195.72 346.912 195.72 352.844V369.6C195.72 375.532 190.911 380.341 184.979 380.341C179.047 380.341 174.239 375.532 174.239 369.6ZM231.164 369.6V352.844C231.164 346.912 235.973 342.104 241.905 342.104C247.837 342.104 252.646 346.912 252.646 352.844V369.6C252.646 375.532 247.837 380.341 241.905 380.341C235.973 380.341 231.164 375.532 231.164 369.6ZM288.305 369.6V352.844C288.305 346.912 293.114 342.104 299.046 342.104C304.978 342.104 309.787 346.912 309.787 352.844V369.6C309.787 375.532 304.978 380.341 299.046 380.341C293.114 380.341 288.305 375.532 288.305 369.6ZM345.446 369.6V352.844C345.446 346.912 350.255 342.104 356.187 342.104C362.119 342.104 366.927 346.912 366.927 352.844V369.6C366.927 375.532 362.119 380.341 356.187 380.341C350.255 380.341 345.446 375.532 345.446 369.6ZM402.587 369.6V352.844C402.587 346.912 407.395 342.104 413.327 342.104C419.259 342.104 424.068 346.912 424.068 352.844V369.6C424.068 375.532 419.259 380.341 413.327 380.341C407.395 380.341 402.587 375.532 402.587 369.6ZM441.468 300C447.4 300 452.209 304.809 452.209 310.741C452.209 316.673 447.4 321.481 441.468 321.481H155.335C149.403 321.481 144.594 316.673 144.594 310.741C144.594 304.809 149.403 300 155.335 300H441.468ZM174.239 268.637V251.881C174.239 245.95 179.047 241.141 184.979 241.141C190.911 241.141 195.72 245.95 195.72 251.881V268.637C195.72 274.569 190.911 279.378 184.979 279.378C179.047 279.378 174.239 274.569 174.239 268.637ZM231.164 268.637V251.881C231.164 245.95 235.973 241.141 241.905 241.141C247.837 241.141 252.646 245.95 252.646 251.881V268.637C252.646 274.569 247.837 279.378 241.905 279.378C235.973 279.378 231.164 274.569 231.164 268.637ZM288.305 268.637V251.881C288.305 245.95 293.114 241.141 299.046 241.141C304.978 241.141 309.787 245.95 309.787 251.881V268.637C309.787 274.569 304.978 279.378 299.046 279.378C293.114 279.378 288.305 274.569 288.305 268.637ZM345.446 268.637V251.881C345.446 245.95 350.255 241.141 356.187 241.141C362.119 241.141 366.927 245.95 366.927 251.881V268.637C366.927 274.569 362.119 279.378 356.187 279.378C350.255 279.378 345.446 274.569 345.446 268.637ZM402.587 268.637V251.881C402.587 245.95 407.395 241.141 413.327 241.141C419.259 241.141 424.068 245.95 424.068 251.881V268.637C424.068 274.569 419.259 279.378 413.327 279.378C407.395 279.378 402.587 274.569 402.587 268.637ZM590 300C590 460.163 460.163 590 300 590C139.837 590 10 460.163 10 300C10 139.837 139.837 10 300 10C460.163 10 590 139.837 590 300Z" stroke="currentColor" stroke-linecap="round"/>
+</svg>
+
+  </div>
+</div>
+<script>
+(function() {
+  var splash = document.querySelector(".splash-page");
+  if (!splash) return;
+  var basePath = (splash.getAttribute("data-base-path") || "").replace(/\/?$/, "/");
+  var params = new URLSearchParams(window.location.search);
+  var to = params.get("to");
+  var redirect = params.get("redirect");
+  var targetUrl = null;
+  if (redirect) {
+    targetUrl = redirect.startsWith("http") ? redirect : basePath + redirect.replace(/^\//, "");
+  } else if (to === "prototype-1") {
+    targetUrl = basePath + "prototype-1/";
+  } else {
+    targetUrl = basePath + "launchpad-1/";
+  }
+  function go() {
+    window.location.replace(targetUrl);
+  }
+  if (to || redirect) {
+    setTimeout(go, 5500);
+  }
+})();
+</script>
+<script src="/diagnostics-pub/assets/scripts/splash-particles.js"></script>
+
+    
+<div id="prototype-gate-root" class="prototype-gate-root fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm" aria-modal="true" role="dialog" aria-labelledby="prototype-gate-title" aria-describedby="prototype-gate-desc">
+  <div class="card bg-base-100 border border-base-300 shadow-xl w-full max-w-xs sm:max-w-sm">
+    <div class="card-body p-6 sm:p-8">
+      <h2 id="prototype-gate-title" class="card-title text-xl mb-3">Prototype access</h2>
+      <p id="prototype-gate-desc" class="text-sm text-base-content/80 leading-relaxed mb-8">This build is password-protected. Enter the password to continue.</p>
+      <div class="flex flex-col gap-8">
+        <label class="floating-label w-full">
+          <input type="password" id="prototype-gate-input" class="input input-bordered w-full" placeholder="Password" autocomplete="current-password" />
+          <span>Password</span>
+        </label>
+        <div class="flex flex-col gap-3">
+          <p id="prototype-gate-error" class="text-sm text-error leading-snug hidden min-h-0" role="alert">Incorrect password. Try again.</p>
+          <button type="button" id="prototype-gate-submit" class="btn btn-primary btn-block">Continue</button>
+        </div>
+      </div>
+      <noscript><p class="text-sm text-warning mt-6">JavaScript is required to unlock this prototype.</p></noscript>
+    </div>
+  </div>
+</div>
+
+    <script src="/diagnostics-pub/assets/scripts/prototype-gate.js"></script>
+
+</body>
+</html>

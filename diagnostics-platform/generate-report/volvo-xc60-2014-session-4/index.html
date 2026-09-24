@@ -1,0 +1,1185 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="Hi-Tech">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generate Report — Volvo XC60 - Diagnostics Platform</title>
+    <script>
+      (function() {
+        // Usability-test / demo links can carry presets as URL params (?theme=&language=&mode=),
+        // generated from Launchpad 2 Settings. Seed localStorage from them before first paint —
+        // same place base.njk already reads 'theme' from — then strip just those keys from the
+        // URL (preserving any other params, e.g. diagnostics-dashboard's vehicle data) so a
+        // bookmarked/reloaded link doesn't keep re-forcing presets after the tester's own
+        // in-session changes.
+        var params = new URLSearchParams(location.search);
+        var PRESET_PARAM_TO_STORAGE_KEY = { theme: 'theme', language: 'language', mode: 'launchpad-onboarding-mode', notif: 'launchpad-notifications-suppressed', vehicleType: 'automechanika-vehicle-type', role: 'automechanika-role' };
+        var paramsChanged = false;
+        Object.keys(PRESET_PARAM_TO_STORAGE_KEY).forEach(function (param) {
+          if (params.has(param)) {
+            var value = params.get(param);
+            // Automechanika's Settings Test Link now generates brand-only theme values ("WOW",
+            // not "WOW Dark" — light/dark is the sidebar footer's own toggle, not part of the
+            // preset link, see automechanika-theme-toggle.js) — resolve those against whichever
+            // mode was last selected on this device, defaulting to Dark if none has been yet.
+            // Full theme names ("Hi-Tech", "WOW Dark", …) pass through unchanged.
+            if (param === 'theme' && /^(Autocom|WOW|Wabco)$/.test(value)) {
+              value = value + ' ' + (localStorage.getItem('theme-mode') || 'Dark');
+            }
+            localStorage.setItem(PRESET_PARAM_TO_STORAGE_KEY[param], value);
+            params.delete(param);
+            paramsChanged = true;
+          }
+        });
+        // ?gate=<issued-at-ms> bypasses the prototype password gate (sessionStorage, same
+        // key/value the gate itself writes on a correct password) for 30 days from when the link
+        // was generated (Settings' Test Link) — runs before the next script block below reads it,
+        // so the gate never flashes. A plain boolean bypass (the old ?gate=1) would work forever
+        // no matter how many times the real password gets rotated, since it never checks the
+        // password at all — this at least puts a shelf life on a shared/bookmarked link. Not real
+        // security either way (a hand-edited timestamp bypasses this too), see prototype-gate.js.
+        var gateParam = params.get('gate');
+        if (gateParam) {
+          var gateIssuedAt = parseInt(gateParam, 10);
+          var GATE_LINK_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
+          if (!isNaN(gateIssuedAt) && (Date.now() - gateIssuedAt) < GATE_LINK_MAX_AGE_MS) {
+            try { sessionStorage.setItem('autocom-prototype-gate', '1'); } catch (e) {}
+          }
+          params.delete('gate');
+          paramsChanged = true;
+        }
+        if (paramsChanged) {
+          var newSearch = params.toString();
+          history.replaceState(null, '', location.pathname + (newSearch ? '?' + newSearch : '') + location.hash);
+        }
+        var saved = localStorage.getItem('theme');
+        document.documentElement.setAttribute('data-theme', saved || 'Hi-Tech');
+        // Role (Admin/User) — for sharing a link with trusted external users while hiding
+        // internal-only Settings sections (data-admin-only, see main.css). Client-side only, same
+        // "not real security" caveat as the password gate (prototype-gate.js) — fine for hiding
+        // UI from a trusted-audience demo link, not an access-control boundary. Defaults to Admin
+        // (today's full-access behavior) so any link without ?role= is unaffected.
+        document.documentElement.setAttribute('data-role', localStorage.getItem('automechanika-role') || 'Admin');
+      })();
+    </script>
+    <script>
+      (function () {
+        try {
+          if (sessionStorage.getItem('autocom-prototype-gate') === '1') {
+            document.documentElement.classList.add('prototype-gate-unlocked');
+          }
+        } catch (e) {}
+      })();
+    </script>
+    <link rel="stylesheet" href="/diagnostics-pub/assets/styles/main.css">
+
+</head>
+<body class="bg-base-100 text-base-content">
+
+    
+
+
+<div class="automechanika-shell drawer lg:drawer-open min-h-screen">
+  <input id="automechanika-drawer" type="checkbox" class="drawer-toggle" />
+  
+  <div class="drawer-content flex flex-col lg:h-screen lg:overflow-hidden">
+    
+    <div class="lg:hidden navbar bg-base-100 shadow-lg border-b border-base-200 sticky top-0 z-10 shrink-0">
+      <div class="navbar-start flex gap-2">
+        <label for="automechanika-drawer" class="btn btn-ghost btn-square drawer-button" aria-label="open menu">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+          </svg>
+        </label>
+        <a class="btn btn-ghost px-2" href="/diagnostics-pub/diagnostics-platform/" data-automechanika-home-link>
+          
+<span class="brand-logo h-5 w-auto inline-block [&_svg]:w-full [&_svg]:h-full [&_svg]:block" data-brand-logo="autocom" role="img" aria-label="Autocom">
+  <svg width="105" height="22" viewBox="0 0 105 22" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_15275_29243-u1184)">
+<path d="M53.1614 19.4296L49.7086 12.9987H48.8715C48.453 12.9987 48.1391 12.6925 48.1391 12.1821C48.1391 11.7738 48.453 11.3655 48.8715 11.3655H50.2317C50.5456 11.3655 50.7549 11.5696 50.8595 11.7738L53.0568 15.9589V5.3429C53.0568 4.93459 53.2661 4.62836 53.6846 4.62836C53.9985 4.52628 54.417 4.73044 54.5217 5.03667L57.9745 11.4675H58.8116C59.2301 11.4675 59.544 11.7738 59.544 12.2842C59.544 12.7945 59.2301 13.1008 58.8116 13.1008H57.4514C57.1375 13.1008 56.9282 12.8966 56.8236 12.6925L54.6263 8.5073V19.2254C54.6263 19.6337 54.417 19.94 53.9985 20.042C53.6846 19.94 53.2661 19.7358 53.1614 19.4296Z" fill="currentColor"/>
+<path d="M104.745 5.13869C104.954 5.75115 104.954 6.874 104.954 8.30309V20.3482C104.85 20.5524 104.745 20.7565 104.431 20.7565H100.351C100.037 20.7565 99.8274 20.4503 99.8274 20.1441V9.32386C99.8274 7.7927 99.7228 6.874 99.7228 6.56777C99.6181 6.26154 99.4089 6.05738 98.9903 6.05738C98.5718 6.05738 98.3625 6.26154 98.2579 6.56777C98.1533 6.874 98.0486 7.89478 98.0486 9.32386V20.2461C98.0486 20.5524 97.8394 20.7565 97.5255 20.7565H93.4448C93.1309 20.7565 92.9217 20.4503 92.9217 20.2461V9.63009C92.9217 7.89478 92.9217 6.874 92.817 6.56777C92.7124 6.26154 92.5031 6.05738 92.0846 6.05738C91.8753 6.05738 91.6661 6.15946 91.4568 6.36362C91.2476 6.56777 91.2475 6.77193 91.1429 7.07816C91.1429 7.38439 91.1429 7.89478 91.1429 8.71139V20.2461C91.1429 20.5524 90.9337 20.8586 90.6198 20.8586H86.5391C86.2252 20.8586 86.0159 20.6544 86.0159 20.3482V3.70961C86.0159 3.40337 86.3298 3.19922 86.6437 3.19922H90.7244C91.0383 3.19922 91.2476 3.50545 91.2476 3.81168V4.93453C91.6661 4.21999 92.1892 3.81168 92.7124 3.40337C93.2356 2.99506 93.8634 2.89299 94.5958 2.89299C96.0606 2.89299 97.107 3.60753 97.944 4.93453C98.3625 4.21999 98.8857 3.81168 99.4089 3.40337C100.037 2.99506 100.664 2.89299 101.292 2.89299C102.234 2.89299 102.966 3.09714 103.49 3.60753C104.222 4.01584 104.536 4.52622 104.745 5.13869ZM25.957 3.19922C26.2709 3.19922 26.4802 3.40337 26.4802 3.70961V20.2461C26.4802 20.5524 26.1663 20.7565 25.8524 20.7565H21.6671C21.3532 20.7565 21.144 20.4503 21.144 20.1441V19.2254C20.8301 19.7357 20.3069 20.2461 19.7837 20.5524C19.2606 20.8586 18.6328 20.9607 17.9004 20.9607C17.0633 20.9607 16.4355 20.8586 15.9124 20.5524C15.3892 20.2461 14.9707 19.8378 14.7614 19.4295C14.5521 18.9191 14.3429 18.5108 14.3429 17.8984C14.2382 17.388 14.2382 16.3672 14.2382 14.836V3.70961C14.2382 3.40337 14.5521 3.19922 14.866 3.19922H19.0513C19.3652 3.19922 19.5745 3.50545 19.5745 3.70961V15.1423C19.5745 16.4693 19.5745 17.388 19.6791 17.5921C19.7837 17.7963 19.993 18.0004 20.3069 18.0004C20.7254 18.0004 20.9347 17.8984 21.0393 17.5921C21.144 17.2859 21.144 16.4693 21.144 15.0402V3.81168C21.144 3.50545 21.4579 3.19922 21.7718 3.19922H25.957ZM10.5761 3.81168C11.5178 4.42415 12.041 5.24077 12.2502 6.15946C12.4595 7.07816 12.5641 9.01763 12.5641 11.9779V20.3482C12.4595 20.5524 12.2502 20.7565 12.041 20.7565H7.85567C7.54178 20.7565 7.33251 20.5524 7.22788 20.2461V19.2254C6.91398 19.8378 6.49545 20.2461 5.97229 20.6544C5.44913 20.9607 4.82134 21.1648 4.08891 21.1648C3.14722 21.1648 2.31016 20.8586 1.57774 20.3482C0.845313 19.8378 0.426785 18.715 0.426785 16.8776V15.4485C0.426785 14.1215 0.636049 13.2028 1.05458 12.6924C1.47311 12.2841 2.51943 11.7737 4.08891 11.0592C5.86766 10.3446 6.80935 9.93632 6.91398 9.63009C7.12325 9.42594 7.12325 9.01763 7.12325 8.20101C7.12325 7.28231 7.01861 6.66985 6.91398 6.36362C6.80935 6.15946 6.49545 5.95531 6.28619 6.05738C5.86766 6.05738 5.6584 6.15946 5.55376 6.36362C5.44913 6.56777 5.44913 7.18023 5.44913 8.20101V9.52801C5.44913 9.73217 5.23987 9.93632 5.0306 10.0384H0.949946C0.740681 10.0384 0.426785 9.83425 0.426785 9.52801V8.81347C0.426785 7.48647 0.636049 6.36362 0.845313 5.64907C1.26384 4.93453 1.787 4.32207 2.83333 3.70961C3.77502 3.19922 4.92597 2.89299 6.49545 2.89299C8.2742 2.89299 9.63442 3.19922 10.5761 3.81168ZM7.12325 12.4883C6.28619 13.1007 5.76303 13.6111 5.6584 14.0194C5.55376 14.4277 5.44913 15.0402 5.44913 15.8568C5.44913 16.7755 5.55376 17.388 5.6584 17.5921C5.76303 17.8984 5.97229 18.0004 6.39082 18.0004C6.70472 18.0004 6.91398 17.8984 7.01861 17.6942C7.12325 17.49 7.12325 16.9797 7.12325 16.061V12.4883ZM35.2693 18.0004C35.4786 18.1025 35.6878 18.3067 35.6878 18.5108V20.2461C35.6878 20.5524 35.4786 20.7565 35.1647 20.7565H33.4906C32.6535 20.7565 31.7118 20.7565 30.8748 20.5524C29.8284 20.3482 28.9914 19.5316 28.7821 18.6129C28.7821 18.3067 28.6775 17.1838 28.6775 15.3464V6.46569H28.0497C27.7358 6.46569 27.5265 6.15946 27.5265 5.85323V4.21999C27.5265 3.91376 27.7358 3.70961 28.0497 3.60753H28.6775V1.36183C28.6775 1.0556 28.8867 0.85144 29.2006 0.85144H33.4906C33.6998 0.85144 33.9091 1.0556 34.0137 1.36183V3.70961H34.9554C35.2693 3.70961 35.4786 3.91376 35.4786 4.21999V5.95531C35.4786 6.26154 35.2693 6.46569 34.9554 6.46569H34.0137V16.4693C34.1184 17.49 34.7462 17.8984 35.2693 18.0004ZM83.1909 4.83246C83.6094 5.44492 83.9233 5.95531 84.1326 6.56777C84.3418 7.18023 84.4465 8.09893 84.4465 9.32386V13.6111C84.4465 15.1423 84.3418 16.3672 84.2372 17.0817C84.1326 17.7963 83.714 18.5108 83.1909 19.1233C82.6677 19.7357 81.9353 20.2461 81.2029 20.5524C80.3658 20.8586 79.4241 20.9607 78.3778 20.9607C77.3315 20.9607 76.3898 20.8586 75.3435 20.5524C73.8786 20.1441 72.7277 18.9191 72.4138 17.49C72.2045 16.7755 72.0999 15.6527 72.0999 14.1215V9.83425C72.0999 8.20101 72.3091 6.874 72.623 5.95531C72.9369 5.03661 73.6693 4.21999 74.5064 3.70961C75.4481 3.19922 76.599 2.89299 78.0639 2.89299C79.2148 2.89299 80.2612 3.09714 81.0982 3.40337C82.0399 3.81168 82.6677 4.21999 83.1909 4.83246ZM79.0056 8.09893C79.0056 7.18023 79.0056 6.66985 78.901 6.36362C78.7963 6.15946 78.5871 6.05738 78.2732 6.05738C77.9593 6.05738 77.75 6.15946 77.6454 6.36362C77.5407 6.56777 77.4361 7.18023 77.4361 8.09893V16.061C77.4361 16.8776 77.5407 17.388 77.5407 17.6942C77.6454 18.0004 77.8546 18.1025 78.1685 18.1025C78.4824 18.1025 78.6917 18.0004 78.7963 17.7963C78.901 17.5921 78.901 17.0817 78.901 16.2651V8.09893H79.0056ZM70.2165 13.6111C70.5304 13.7132 70.7396 13.9173 70.7396 14.2236C70.7396 15.0402 70.7396 15.9589 70.635 16.7755C70.5304 17.49 70.2165 18.2046 69.6933 18.9191C69.1702 19.6337 68.5424 20.2461 67.7053 20.5524C66.8683 20.9607 65.9266 21.1648 64.671 21.1648C63.4154 21.2669 62.1598 20.9607 61.1135 20.3482C60.2764 19.8378 59.544 19.1233 59.2301 18.2046C58.9162 17.2859 58.7069 16.061 58.7069 14.4277C58.7069 14.1215 58.9162 13.9173 59.2301 13.9173C60.0672 13.7132 60.6949 12.9986 60.6949 12.182C60.6949 11.2633 60.0672 10.5488 59.2301 10.4467C58.9162 10.4467 58.7069 10.2426 58.7069 9.93632V9.22178C58.7069 7.69062 58.8116 6.56777 59.1255 5.85323C59.4394 5.13869 60.0672 4.42415 61.0088 3.81168C62.1598 3.19922 63.4154 2.89299 64.671 2.89299C66.0312 2.89299 67.2868 3.19922 68.2285 3.81168C69.1702 4.32207 69.7979 5.13869 70.2165 6.05738C70.5304 6.874 70.635 7.89478 70.7396 9.32386C70.7396 9.63009 70.5304 9.83424 70.2165 9.93632H66.2405C65.9266 9.93632 65.7173 9.63009 65.7173 9.42594V7.7927C65.7173 7.07816 65.6127 6.56777 65.508 6.36362C65.4034 6.05738 65.1941 5.95531 64.8802 5.95531C64.5663 5.95531 64.3571 6.15946 64.2524 6.36362C64.1478 6.56777 64.1478 7.07816 64.1478 7.89478V16.163C64.1478 16.7755 64.2524 17.2859 64.3571 17.5921C64.4617 17.8984 64.7756 18.1025 65.0895 18.1025C65.4034 18.1025 65.7173 17.8984 65.8219 17.5921C65.9266 17.2859 66.0312 16.6734 66.0312 15.7547V14.1215C66.0312 13.8153 66.2405 13.6111 66.5543 13.509L70.2165 13.6111ZM47.5113 4.83246C48.0344 5.44492 48.3483 5.95531 48.5576 6.56777C48.7669 7.18023 48.8715 8.09893 48.8715 9.32386V9.73217C48.8715 10.0384 48.6622 10.2426 48.3483 10.2426C47.4067 10.3446 46.6742 11.0592 46.6742 11.9779C46.6742 12.8966 47.4067 13.7132 48.3483 13.7132C48.6622 13.7132 48.8715 13.9173 48.8715 14.2236C48.8715 15.4485 48.7669 16.3672 48.6622 16.9797C48.5576 17.6942 48.1391 18.4087 47.6159 19.0212C47.0928 19.6337 46.3603 20.1441 45.6279 20.4503C44.7908 20.7565 43.8492 20.8586 42.8028 20.8586C41.7565 20.8586 40.8148 20.7565 39.7685 20.4503C38.3036 20.042 37.1527 18.8171 36.8388 17.388C36.6295 16.6734 36.5249 15.5506 36.5249 14.0194V9.83425C36.5249 8.20101 36.7342 6.874 37.0481 5.95531C37.362 5.03661 38.0944 4.21999 38.9314 3.70961C39.8731 3.19922 41.0241 2.89299 42.4889 2.89299C43.6399 2.89299 44.6862 3.09714 45.5233 3.40337C46.465 3.81168 47.0928 4.21999 47.5113 4.83246ZM43.4306 8.09893C43.4306 7.18023 43.4306 6.66985 43.326 6.36362C43.2214 6.15946 43.0121 6.05738 42.6982 6.05738C42.3843 6.05738 42.175 6.15946 42.0704 6.36362C41.9658 6.56777 41.8611 7.18023 41.8611 8.09893V16.061C41.8611 16.8776 41.9658 17.388 41.9658 17.6942C42.0704 18.0004 42.2797 18.1025 42.5936 18.1025C42.9075 18.1025 43.1167 18.0004 43.2214 17.7963C43.326 17.5921 43.326 17.0817 43.326 16.2651V8.09893H43.4306Z" fill="currentColor"/>
+</g>
+<defs>
+<clipPath id="clip0_15275_29243-u1184">
+<rect width="105" height="22" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+
+</span>
+<span class="brand-logo h-5 w-auto inline-block [&_svg]:w-full [&_svg]:h-full [&_svg]:block" data-brand-logo="wow" role="img" aria-label="WOW">
+  <svg width="60" height="16" viewBox="0 0 60 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M43.5609 13.7315C43.5726 13.6869 43.5813 13.6527 43.5886 13.6171C43.7375 12.907 43.8821 12.1955 44.0339 11.4869C44.1755 10.8244 44.3156 10.1619 44.4689 9.50239C44.6441 8.74927 44.8382 8.0006 45.0149 7.24748C45.0747 6.99347 45.1068 6.73501 45.1565 6.47802C45.1638 6.44237 45.1959 6.41118 45.2178 6.3785C45.2411 6.41266 45.2674 6.44534 45.2893 6.481C45.2952 6.48991 45.2922 6.50476 45.2952 6.51665C45.447 7.25046 45.5915 7.98575 45.7521 8.71807C45.8324 9.08647 45.9725 9.44297 46.0294 9.81285C46.2236 11.0725 46.3944 12.3366 46.5696 13.5992C46.5842 13.7032 46.6163 13.7374 46.7243 13.7374C48.0469 13.7344 49.368 13.7374 50.6906 13.7418C50.8074 13.7418 50.8468 13.7047 50.876 13.5978C51.8906 9.96882 52.9096 6.34136 53.9271 2.71391C53.9387 2.6738 53.9475 2.63369 53.9577 2.58764C53.9022 2.5817 53.8949 2.57576 53.8482 2.58764L50.8979 2.56982C50.5987 2.57576 50.5184 2.55794 50.4892 2.67529C50.3534 3.21599 50.2133 3.7552 50.0761 4.29442C49.6264 6.06953 49.1199 7.83275 48.8746 9.6539C48.8702 9.6851 48.8381 9.71332 48.8192 9.74303C48.7973 9.71184 48.7608 9.68361 48.7535 9.64945C48.6498 9.0731 48.5812 8.48932 48.4425 7.92188C48.0148 6.16608 47.5593 4.41623 47.117 2.66192C47.0951 2.57725 47.0513 2.56982 46.9798 2.56982C45.8718 2.56982 44.7638 2.56982 43.6543 2.56536C43.5638 2.56536 43.5302 2.59656 43.5069 2.67826C43.3521 3.22193 43.1886 3.76263 43.0354 4.3063C42.5288 6.09032 41.9317 7.85206 41.6179 9.68658C41.6135 9.71629 41.5755 9.74006 41.5536 9.7668C41.5332 9.73412 41.5011 9.70292 41.4953 9.66727C41.3755 8.95575 41.2938 8.23679 41.1361 7.53269C40.7741 5.90464 40.3756 4.28551 39.9946 2.66192C39.9741 2.57576 39.9347 2.55942 39.8544 2.55942C38.799 2.55942 37.7421 2.55942 36.6866 2.55794C36.653 2.55794 36.618 2.56239 36.5786 2.56536C36.5873 2.60844 36.5932 2.63964 36.6019 2.67083C37.5961 6.31017 38.5917 9.94802 39.5829 13.5874C39.6106 13.6899 39.65 13.724 39.761 13.724C40.9829 13.7211 42.2033 13.724 43.4251 13.724C43.4689 13.724 43.501 13.724 43.501 13.724M57.6613 10.7531C57.6613 10.7531 57.597 10.7531 57.5576 10.7531C56.435 10.7531 55.3124 10.7531 54.1884 10.7472C54.0876 10.7472 54.0511 10.7769 54.0278 10.872C53.8365 11.6132 53.6409 12.3544 53.4468 13.0942C53.3928 13.2977 53.3417 13.5012 53.2862 13.7136C53.33 13.7166 53.3621 13.7211 53.3928 13.7211C54.5081 13.7225 55.6219 13.7225 56.7372 13.727C56.8233 13.727 56.854 13.6988 56.8759 13.62C57.1036 12.8134 57.3343 12.0083 57.5649 11.2032C57.6058 11.0591 57.6467 10.9136 57.6934 10.7531" fill="currentColor"/>
+<path d="M27.614 0.00148548C27.8563 0.0252526 28.0986 0.0460488 28.3409 0.0742722C30.1759 0.288176 31.8591 0.88681 33.2985 2.06922C34.8853 3.37344 35.7992 5.05794 36.0561 7.08706C36.2809 8.85622 35.9991 10.5377 35.078 12.0782C33.9189 14.0167 32.2051 15.2169 30.0051 15.7353C29.2387 15.9165 28.4592 16.0146 27.6694 15.9982C27.0125 15.9834 26.3527 16.0012 25.6987 15.9418C23.9381 15.7799 22.3104 15.2421 20.9207 14.1162C19.0726 12.6189 18.0886 10.6789 18.0229 8.30661C17.9631 6.1542 18.6098 4.23946 20.1119 2.65449C21.2141 1.4899 22.5805 0.766489 24.1221 0.356507C24.833 0.167855 25.5571 0.0594178 26.2928 0.0193108C26.341 0.0163399 26.3877 0.00742722 26.4344 0C26.8271 0 27.2198 0 27.614 0M27.1439 12.4406C27.4227 12.4124 27.7045 12.4035 27.9804 12.3544C29.573 12.0767 30.6781 11.2003 31.1978 9.66282C31.5569 8.59924 31.5482 7.51635 31.1818 6.45129C30.7686 5.24808 29.9526 4.41029 28.7555 3.9602C27.9307 3.64974 27.0753 3.57844 26.2096 3.73589C24.7381 4.00476 23.6695 4.80838 23.1338 6.21064C22.6024 7.6025 22.7075 8.98842 23.3819 10.3149C23.8024 11.1423 24.4724 11.7246 25.3337 12.0811C25.9118 12.3203 26.5176 12.4183 27.1424 12.4376" fill="currentColor"/>
+<path d="M0 2.53268C0.0364955 2.52971 0.0715311 2.52525 0.108027 2.52525C1.1591 2.52525 2.20871 2.52823 3.25977 2.52674C3.34298 2.52674 3.38532 2.54159 3.40722 2.63518C3.79553 4.29739 4.20136 5.95663 4.57361 7.62181C4.71959 8.27541 4.79258 8.94386 4.90207 9.60488C4.90791 9.63756 4.94294 9.66579 4.96338 9.69698C4.98382 9.66876 5.0174 9.64202 5.02323 9.61083C5.29476 8.00506 5.79402 6.45871 6.2451 4.90048C6.46262 4.15033 6.68451 3.40018 6.90056 2.64855C6.92684 2.55942 6.96187 2.5312 7.0553 2.5312C8.15454 2.53565 9.25233 2.53565 10.3516 2.53714C10.4187 2.53714 10.4698 2.53714 10.4917 2.62329C10.9151 4.29739 11.3545 5.96852 11.7632 7.64707C11.918 8.28581 12.0026 8.94089 12.1209 9.58854C12.1267 9.61974 12.1588 9.64648 12.1778 9.6747C12.1997 9.64648 12.2347 9.62122 12.2391 9.59151C12.4508 7.99763 12.8683 6.44831 13.2683 4.89602C13.4595 4.15479 13.6508 3.41355 13.8362 2.66934C13.861 2.56982 13.9018 2.54011 14.004 2.54011C15.058 2.54457 16.1135 2.54457 17.1675 2.54605C17.2069 2.54605 17.2463 2.54605 17.3003 2.54605C17.2156 2.85205 17.1353 3.1432 17.0536 3.43286C16.1149 6.78105 15.1734 10.1292 14.2391 13.4789C14.2026 13.6082 14.1544 13.6512 14.0157 13.6512C12.7121 13.6438 11.4085 13.6438 10.1063 13.6453C10.0085 13.6453 9.96326 13.6319 9.9472 13.5161C9.77348 12.2549 9.60268 10.9938 9.40561 9.73709C9.34138 9.32562 9.18956 8.92901 9.09905 8.52051C8.95161 7.85057 8.82314 7.17618 8.68592 6.50476C8.68154 6.48099 8.683 6.45574 8.67278 6.43494C8.65526 6.39781 8.63045 6.36216 8.60855 6.32651C8.58519 6.36067 8.55016 6.39335 8.5414 6.43197C8.50052 6.63102 8.46695 6.83156 8.43191 7.03209C8.28739 7.85503 8.05966 8.65568 7.85236 9.46377C7.59689 10.4516 7.43777 11.4647 7.1896 12.454C7.10202 12.803 7.04216 13.1566 6.98523 13.5116C6.96917 13.6141 6.94144 13.6453 6.84801 13.6453C5.613 13.6408 4.378 13.6394 3.14299 13.6423C3.04664 13.6423 3.02328 13.5992 3.00285 13.5235C2.09776 10.2065 1.19413 6.8984 0.289044 3.58883C0.207294 3.28877 0.125544 2.98871 0.0437945 2.68865C0.0335758 2.65152 0.0145982 2.61587 0 2.58022C0 2.56388 0 2.59061 0 2.59061" fill="currentColor"/>
+<path d="M59.9985 2.62775C59.8861 3.01397 59.7708 3.40018 59.6613 3.7864C59.127 5.66994 58.5913 7.55348 58.0614 9.43703C58.0322 9.54398 57.9913 9.57963 57.876 9.57815C56.7855 9.5722 55.695 9.5722 54.6045 9.57072C54.5607 9.57072 54.5169 9.57072 54.4585 9.57072C54.5417 9.26323 54.622 8.96911 54.7023 8.675C55.2483 6.68302 55.7943 4.69103 56.3373 2.69757C56.3636 2.6025 56.4015 2.57576 56.4994 2.57576C57.6176 2.58022 58.7358 2.58022 59.8555 2.5817C59.9036 2.5817 59.9518 2.58022 60 2.57873C60 2.59507 60 2.58913 60 2.58913" fill="currentColor"/>
+</svg>
+
+</span>
+<span class="brand-logo h-5 w-auto inline-block [&_svg]:w-full [&_svg]:h-full [&_svg]:block" data-brand-logo="wabco" role="img" aria-label="Wabco">
+  <svg width="78" height="32" viewBox="0 0 78 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_16177_856-u1186)">
+<mask id="mask0_16177_856-u1186" style="mask-type:luminance" maskUnits="userSpaceOnUse" x="39" y="0" width="39" height="23">
+<path d="M67.6293 0.190077C67.0468 0.408106 66.6315 0.821803 66.6315 0.821803L57.8988 9.28022L51.7155 3.28721C51.7155 3.28721 50.4005 1.92313 48.324 1.92313C46.2475 1.92313 44.9382 3.2928 44.9382 3.2928L39.5452 8.51991L46.2879 15.0552L48.3355 13.0706L57.9276 22.3676L77.3829 3.52201C77.3829 3.52201 77.9943 2.98532 78.0001 2.10762V2.07966C78.0001 1.85045 77.954 1.59888 77.8501 1.33054C77.3368 0.00559062 75.8775 0 75.8775 0H68.6964C68.6964 0 68.6733 0 68.6329 0C68.483 0 68.0908 0.0167715 67.6293 0.190077Z" fill="white"/>
+</mask>
+<g mask="url(#mask0_16177_856-u1186)">
+<path d="M78 0H39.5566V22.3732H78V0Z" fill="url(#paint0_linear_16177_856-u1186)"/>
+</g>
+<mask id="mask1_16177_856-u1186" style="mask-type:luminance" maskUnits="userSpaceOnUse" x="0" y="0" width="78" height="32">
+<path d="M78 0H0.536377V32H78V0Z" fill="white"/>
+</mask>
+<g mask="url(#mask1_16177_856-u1186)">
+<path d="M64.1281 30.7812H65.6508L64.5549 28.9587C65.1605 28.7128 65.5066 28.2376 65.5066 27.6114C65.5066 26.6778 64.8721 26.0629 63.6205 26.0629H61.2153V30.7812H62.5361V29.1488H63.2052L64.1281 30.7812ZM64.1858 27.6114C64.1858 27.9469 63.9493 28.1873 63.459 28.1873H62.5361V27.0412H63.459C63.9493 27.0412 64.1858 27.2816 64.1858 27.617M58.8504 27.399V28.9084C58.8504 29.5905 58.5043 29.8309 58.0602 29.8309C57.6161 29.8309 57.2642 29.5905 57.2642 28.914V27.399H55.9145V28.9755C55.9145 30.2166 56.624 30.8986 58.0602 30.8986C59.4964 30.8986 60.2001 30.2166 60.2001 28.9811V27.399H58.8504ZM57.2584 26.0685H55.9087V26.9573H57.2584V26.0685ZM58.8504 26.9573H60.2001V26.0685H58.8504V26.9573ZM50.3427 29.1935L49.662 26.0685H48.3181L49.5582 30.7868H50.9829L51.8193 27.7121L52.6498 30.7868H54.0745L55.3146 26.0685H53.9707L53.2901 29.1935L52.4422 26.0685H51.1906L50.3427 29.1935ZM73.5817 27.7568H71.9436V26.0685H70.5939V30.7868H71.9436V28.8246H73.5817V30.7868H74.9372V26.0685H73.5817V27.7568ZM67.2601 27.0971V30.7868H68.6098V27.0971H69.8614V26.0685H66.0027V27.0971H67.2543H67.2601Z" fill="currentColor"/>
+<path d="M46.282 27.4996H39.3027V24.6038H42.204V25.7442H43.3749V24.6038H46.2762V27.4996H46.282ZM43.3807 30.8651V32C45.0476 31.6981 46.282 30.2837 46.282 28.7016V28.6401H39.3027V28.7016C39.3027 30.2837 40.5371 31.6925 42.204 32V30.8651H43.3749H43.3807Z" fill="#ED1D24"/>
+<path d="M27.9341 29.0482C27.9571 29.8364 27.9918 30.7756 26.3537 30.7868H24.7213C23.0602 30.7924 23.1928 29.6128 23.1409 28.9811V27.248C23.1409 26.5716 23.4351 26.0069 24.7271 26.0181H26.2383C27.6572 26.0125 27.9398 26.5716 27.9398 27.248V27.5834H26.0653C26.0653 27.1642 25.973 26.9014 25.6961 26.8679H25.3904C25.1136 26.8679 25.0213 27.1977 25.0213 27.617V28.696C25.0501 29.1208 25.0328 29.8029 25.4366 29.8029H25.6557C25.9787 29.8085 26.0364 29.473 26.0537 29.0482H27.9341Z" fill="#005BAA"/>
+<path d="M7.93659 27.863L7.48092 30.8092H4.7123L3.67407 26.1746H5.46214L6.03893 29.5122L6.75993 26.1746H9.10748L9.82271 29.5122L10.4053 26.1746H12.1933L11.1609 30.8092H8.38649L7.93659 27.863Z" fill="#005BAA"/>
+<path fill-rule="evenodd" clip-rule="evenodd" d="M15.3196 30.1159L15.5041 30.7868H17.4652L15.9886 26.1411H13.3181L11.8992 30.7868H13.7968L13.9641 30.1159H15.3253H15.3196ZM14.2121 29.1935L14.662 27.5387L15.0888 29.1935H14.2121Z" fill="#005BAA"/>
+<path fill-rule="evenodd" clip-rule="evenodd" d="M21.3413 30.7868H17.8113V26.1355H21.797C22.2757 26.1187 22.6506 26.3871 22.6449 27.002V27.4157C22.6449 27.4157 22.6737 28.1816 21.9527 28.2767C22.7198 28.4667 22.7025 29.2997 22.7025 29.2997V29.6743C22.691 30.7253 21.8143 30.8036 21.3471 30.7868M19.7897 27.9301V26.9853H20.3377C20.5107 26.9853 20.6549 27.125 20.6549 27.2927V27.6226C20.6549 27.7903 20.5107 27.9301 20.3377 27.9301H19.7897ZM19.7897 29.7973V28.8189H20.3492C20.5223 28.8189 20.6665 28.9587 20.6665 29.1264V29.4898C20.6665 29.6575 20.5338 29.8141 20.3608 29.7973H19.7897Z" fill="#005BAA"/>
+<path fill-rule="evenodd" clip-rule="evenodd" d="M29.9702 30.7868C28.4128 30.7868 28.4186 29.6519 28.3897 28.9811V27.248C28.3897 26.5716 28.9608 26.0181 29.6587 26.0181H32.2658C32.9637 26.0181 33.5348 26.5716 33.5348 27.248V28.9811C33.529 29.6407 33.5175 30.7812 31.9486 30.7868H29.9702ZM30.7719 29.7861C30.3681 29.7861 30.322 29.1208 30.322 28.6904V27.589C30.322 27.1697 30.4143 26.8343 30.6912 26.8399H31.2391C31.5102 26.8399 31.6429 27.1697 31.6313 27.589V28.6904C31.6313 29.1041 31.6083 29.7805 31.1987 29.7861H30.7719Z" fill="#005BAA"/>
+</g>
+<mask id="mask2_16177_856-u1186" style="mask-type:luminance" maskUnits="userSpaceOnUse" x="0" y="0" width="46" height="21">
+<path d="M19.5073 9.30258L10.7573 0.821803C10.7573 0.821803 10.3709 0.391335 9.93829 0.195667C9.51146 0 9.02118 0 9.02118 0H3.43781C3.28207 0 1.48824 0.0391336 0.761479 1.75542C0.000109076 3.54997 1.40172 4.80224 1.40172 4.80224L16.1388 19.0748C16.1388 19.0748 17.477 20.4724 19.5189 20.4724C21.5607 20.4724 22.8989 19.086 22.8989 19.086L29.0821 13.0874L35.3 19.1139C35.3 19.1139 36.5631 20.4724 38.6915 20.4724C40.8199 20.4724 42.1177 19.1195 42.1177 19.1195L45.4689 15.8658L29.1052 0L19.5073 9.30258Z" fill="white"/>
+</mask>
+<g mask="url(#mask2_16177_856-u1186)">
+<path d="M45.4688 0H0V20.4724H45.4688V0Z" fill="url(#paint1_linear_16177_856-u1186)"/>
+</g>
+</g>
+<defs>
+<linearGradient id="paint0_linear_16177_856-u1186" x1="78.161" y1="11.1592" x2="39.7176" y2="11.1592" gradientUnits="userSpaceOnUse">
+<stop stop-color="#ED1C24"/>
+<stop offset="0.35" stop-color="#ED1C24"/>
+<stop offset="0.43" stop-color="#D8181F"/>
+<stop offset="0.82" stop-color="#790608"/>
+<stop offset="1" stop-color="#540000"/>
+</linearGradient>
+<linearGradient id="paint1_linear_16177_856-u1186" x1="1.53197" y1="12.5417" x2="46.4643" y2="12.5417" gradientUnits="userSpaceOnUse">
+<stop stop-color="#005BAB"/>
+<stop offset="0.35" stop-color="#005BAB"/>
+<stop offset="0.49" stop-color="#004C97"/>
+<stop offset="0.78" stop-color="#002865"/>
+<stop offset="1" stop-color="#000A3C"/>
+</linearGradient>
+<clipPath id="clip0_16177_856-u1186">
+<rect width="78" height="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+
+</span>
+
+        </a>
+      </div>
+      
+      <div class="navbar-end">
+        <button type="button" class="notifications-bell-trigger btn btn-ghost btn-square" aria-label="Notifications" aria-haspopup="dialog">
+          <div class="indicator">
+            <span class="notifications-badge indicator-item badge badge-warning badge-sm hidden">0</span>
+            
+<span class="icon icon-bell w-5 h-5 inline-block shrink-0 [&_svg]:w-full [&_svg]:h-full [&_svg]:block" role="img" aria-hidden="true">
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+  <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+  <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+</svg>
+
+</span>
+
+          </div>
+        </button>
+      </div>
+    </div>
+    <main class="flex-1 min-h-0 flex flex-col w-full">
+      
+      <div class="w-full flex-1 min-h-0 lg:overflow-auto launchpad-main-bg">
+        <div class="container mx-auto px-4 py-6 max-w-[1200px] w-full flex flex-col min-h-0">
+          
+
+
+
+
+
+
+
+
+
+
+
+<div class="report-composer w-full flex flex-col flex-1 min-h-0 gap-4 lg:max-h-[calc(100vh-7rem)]" data-report-slug="volvo-xc60-2014-session-4" data-report-url="/diagnostics-pub/diagnostics-platform/session-report/volvo-xc60-2014-session-4/" >
+  
+<div class="content-header border-b border-base-300 pb-4 shrink-0 flex flex-col gap-4">
+  
+  <div class="flex items-center gap-3">
+    <a href="/diagnostics-pub/diagnostics-platform/my-garage/" class="btn btn-square btn-ghost btn-sm" aria-label="Back to Garage">
+      
+<span class="icon icon-arrow-left w-4 h-4 inline-block shrink-0 [&_svg]:w-full [&_svg]:h-full [&_svg]:block" role="img" aria-hidden="true">
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M19 12H5M5 12L12 19M5 12L12 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
+
+</span>
+
+    </a>
+    <h1 class="text-xl font-semibold text-base-content">Generate Report</h1>
+  </div>
+  
+</div>
+
+
+  <div class="report-composer-body grid grid-cols-1 lg:grid-cols-[420px_1fr] gap-4 flex-1 min-h-0 overflow-hidden min-w-0">
+    
+    <div class="flex flex-col min-h-0 min-w-0 overflow-auto bg-base-100 rounded-box border border-base-200 p-4">
+    <div class="flex flex-col gap-4">
+      <div>
+        <p class="text-xs font-semibold uppercase tracking-wide text-base-content/50 mb-2">Report Type</p>
+        <div role="tablist" class="tabs tabs-box">
+          <button type="button" role="tab" class="tab tab-active gap-1.5">
+            
+<span class="icon icon-success w-3.5 h-3.5 inline-block shrink-0 [&_svg]:w-full [&_svg]:h-full [&_svg]:block" role="img" aria-hidden="true">
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+  <circle cx="12" cy="12" r="10"/>
+  <path d="m9 12 2 2 4-4"/>
+</svg>
+
+</span>
+
+            Customer Report
+          </button>
+          <button type="button" role="tab" class="tab" disabled title="Coming soon">
+            Internal
+          </button>
+          <button type="button" role="tab" class="tab" disabled title="Coming soon">
+            Warranty
+          </button>
+        </div>
+      </div>
+
+      <div class="flex flex-col gap-3">
+        <div>
+          <label class="label" for="report-input-filename"><span class="label-text text-xs text-base-content/60">File name</span></label>
+          <input type="text" class="input input-bordered input-sm w-full" id="report-input-filename" value="Volvo-XC60-2014-Session-4-Report" />
+        </div>
+        <div>
+          <label class="label" for="report-input-mechanic"><span class="label-text text-xs text-base-content/60">Mechanic</span></label>
+          <input type="text" class="input input-bordered input-sm w-full" id="report-input-mechanic" value="David Ramm" />
+        </div>
+        <div>
+          <label class="label" for="report-input-date"><span class="label-text text-xs text-base-content/60">Date</span></label>
+          <input type="date" class="input input-bordered input-sm w-full" id="report-input-date" />
+        </div>
+      </div>
+
+      <div class="collapse collapse-arrow border border-base-200 rounded-box min-h-0">
+        <input type="checkbox" class="min-h-0" />
+        <div class="collapse-title min-h-0 py-2.5 text-sm font-semibold text-base-content">Vehicle</div>
+        <div class="collapse-content text-sm">
+          <dl class="flex flex-col gap-1.5">
+            <div class="flex justify-between gap-4"><dt class="text-base-content/60">Vehicle</dt><dd class="text-right">Volvo XC60 (2014)</dd></div>
+            <div class="flex justify-between gap-4"><dt class="text-base-content/60">Plate</dt><dd>YXC 123</dd></div>
+            <div class="flex justify-between gap-4"><dt class="text-base-content/60">VIN</dt><dd class="font-mono">YV1LZA8XCB9577712</dd></div>
+            <div class="flex justify-between gap-4"><dt class="text-base-content/60">Mileage</dt><dd>48,632 km</dd></div>
+          </dl>
+        </div>
+      </div>
+
+      <div class="collapse collapse-arrow border border-base-200 rounded-box min-h-0">
+        <input type="checkbox" class="min-h-0" checked />
+        <div class="collapse-title min-h-0 py-2.5 text-sm font-semibold text-base-content">Customer</div>
+        <div class="collapse-content flex flex-col gap-3">
+          <div>
+            <label class="label" for="report-input-order-number"><span class="label-text text-xs text-base-content/60">Order number</span></label>
+            <input type="text" class="input input-bordered input-sm w-full" id="report-input-order-number" value="RO-4521" disabled />
+          </div>
+          <div>
+            <label class="label" for="report-input-customer-name"><span class="label-text text-xs text-base-content/60">Customer</span></label>
+            <input type="text" class="input input-bordered input-sm w-full" id="report-input-customer-name" value="Anders Björk" placeholder="Customer name" />
+          </div>
+          <div>
+            <label class="label" for="report-input-customer-phone"><span class="label-text text-xs text-base-content/60">Telephone</span></label>
+            <input type="text" class="input input-bordered input-sm w-full" id="report-input-customer-phone" value="070-123 45 67" placeholder="Phone number" />
+          </div>
+        </div>
+      </div>
+
+      <div class="collapse collapse-arrow border border-base-200 rounded-box min-h-0">
+        <input type="checkbox" class="min-h-0" checked />
+        <div class="collapse-title min-h-0 py-2.5 text-sm font-semibold text-base-content flex items-center gap-2">
+          Diagnostic Events
+          <span class="badge badge-neutral badge-sm" data-events-included-count>5</span>
+        </div>
+        <div class="collapse-content flex flex-col gap-1" >
+          
+          
+          <div class="flex items-center gap-2 py-1.5">
+            <input type="checkbox" class="checkbox checkbox-sm shrink-0" id="report-event-include-0" checked data-event-include="0" />
+            <label for="report-event-include-0" class="flex-1 min-w-0 flex items-center gap-2 cursor-pointer">
+              
+<span class="icon icon-engine w-4 h-4 shrink-0 text-base-content/60 inline-block shrink-0 [&_svg]:w-full [&_svg]:h-full [&_svg]:block" role="img" aria-hidden="true">
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M21.8999 9.79968H19.6998V10.8996L18.5999 10.8998V8.48981C18.6006 8.28522 18.5441 8.08467 18.4366 7.91085C18.329 7.73702 18.1751 7.59668 17.9918 7.50571L16.2118 6.6157C16.059 6.53964 15.8906 6.50005 15.7199 6.49968H13.0998V5.39974H15.2999V4.2998H7.60001V5.39974H9.80008L9.7999 6.49968H7.22711C6.99711 6.49913 6.77263 6.57132 6.58588 6.70593L5.3388 7.59981H3.19988V11.9998H2.09994V7.59981H1V17.4998H2.09994V13.0997H3.19988V17.4996L6.29364 17.4998L8.88891 19.4749C9.08079 19.6205 9.31522 19.6994 9.55607 19.6997H17.5001C17.7916 19.6995 18.0714 19.5835 18.2776 19.3773C18.4839 19.171 18.5997 18.8915 18.6001 18.5998V17.4999H19.7V18.5998H21.9001C22.1918 18.5994 22.4713 18.4836 22.6776 18.2774C22.8838 18.0711 22.9998 17.7914 23 17.4999V10.8999C22.9998 10.6082 22.8838 10.3286 22.6776 10.1224C22.4713 9.91613 22.1916 9.80005 21.8999 9.79968ZM10.9 5.39973H12V6.49967H10.9V5.39973ZM21.8999 17.4999H20.8V16.3998H18.5999C18.3082 16.4002 18.0287 16.5162 17.8224 16.7224C17.6162 16.9287 17.5002 17.2082 17.5 17.4999V18.5998H9.55591L6.96064 16.6248C6.76875 16.4793 6.53451 16.4003 6.29347 16.3998H4.29984V8.6999H5.33864C5.56828 8.70027 5.79239 8.62809 5.97875 8.49365L7.22695 7.59996H15.7198L17.5 8.48997V10.9C17.5002 11.1915 17.6162 11.4712 17.8224 11.6775C18.0287 11.8837 18.3082 11.9995 18.5999 11.9999H20.8V10.9H21.8999V17.4999Z" fill="currentColor"/>
+</svg>
+
+</span>
+
+              <span class="text-sm text-base-content truncate flex-1">DPF Regeneration</span>
+              <span class="text-xs text-base-content/50 shrink-0">09:58</span>
+            </label>
+            <button type="button" class="badge badge-success badge-sm shrink-0" data-event-billable="0" aria-pressed="true">Billable</button>
+          </div>
+          
+          <div class="flex items-center gap-2 py-1.5">
+            <input type="checkbox" class="checkbox checkbox-sm shrink-0" id="report-event-include-1" checked data-event-include="1" />
+            <label for="report-event-include-1" class="flex-1 min-w-0 flex items-center gap-2 cursor-pointer">
+              
+<span class="icon icon-alert-octagon w-4 h-4 shrink-0 text-base-content/60 inline-block shrink-0 [&_svg]:w-full [&_svg]:h-full [&_svg]:block" role="img" aria-hidden="true">
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M12 8V12M12 16H12.01M7.86 2H16.14L22 7.86V16.14L16.14 22H7.86L2 16.14V7.86L7.86 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
+
+</span>
+
+              <span class="text-sm text-base-content truncate flex-1">Erase fault codes</span>
+              <span class="text-xs text-base-content/50 shrink-0">09:55</span>
+            </label>
+            <button type="button" class="badge badge-success badge-sm shrink-0" data-event-billable="1" aria-pressed="true">Billable</button>
+          </div>
+          
+          <div class="flex items-center gap-2 py-1.5">
+            <input type="checkbox" class="checkbox checkbox-sm shrink-0" id="report-event-include-2" checked data-event-include="2" />
+            <label for="report-event-include-2" class="flex-1 min-w-0 flex items-center gap-2 cursor-pointer">
+              
+<span class="icon icon-alert-triangle w-4 h-4 shrink-0 text-base-content/60 inline-block shrink-0 [&_svg]:w-full [&_svg]:h-full [&_svg]:block" role="img" aria-hidden="true">
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M11.9998 8.99996V13M11.9998 17H12.0098M10.2898 3.85996L1.81978 18C1.64514 18.3024 1.55274 18.6453 1.55177 18.9945C1.55079 19.3437 1.64127 19.6871 1.8142 19.9905C1.98714 20.2939 2.2365 20.5467 2.53748 20.7238C2.83847 20.9009 3.18058 20.9961 3.52978 21H20.4698C20.819 20.9961 21.1611 20.9009 21.4621 20.7238C21.7631 20.5467 22.0124 20.2939 22.1854 19.9905C22.3583 19.6871 22.4488 19.3437 22.4478 18.9945C22.4468 18.6453 22.3544 18.3024 22.1798 18L13.7098 3.85996C13.5315 3.56607 13.2805 3.32308 12.981 3.15444C12.6814 2.98581 12.3435 2.89722 11.9998 2.89722C11.656 2.89722 11.3181 2.98581 11.0186 3.15444C10.7191 3.32308 10.468 3.56607 10.2898 3.85996Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
+
+</span>
+
+              <span class="text-sm text-base-content truncate flex-1">Fraud detection</span>
+              <span class="text-xs text-base-content/50 shrink-0">09:52</span>
+            </label>
+            <button type="button" class="badge badge-success badge-sm shrink-0" data-event-billable="2" aria-pressed="true">Billable</button>
+          </div>
+          
+          <div class="flex items-center gap-2 py-1.5">
+            <input type="checkbox" class="checkbox checkbox-sm shrink-0" id="report-event-include-3" checked data-event-include="3" />
+            <label for="report-event-include-3" class="flex-1 min-w-0 flex items-center gap-2 cursor-pointer">
+              
+<span class="icon icon-chart-line w-4 h-4 shrink-0 text-base-content/60 inline-block shrink-0 [&_svg]:w-full [&_svg]:h-full [&_svg]:block" role="img" aria-hidden="true">
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+  <path d="M3 3v16a2 2 0 0 0 2 2h16"/>
+  <path d="m19 9-5 5-4-4-4 4"/>
+</svg>
+
+</span>
+
+              <span class="text-sm text-base-content truncate flex-1">Live Data Snapshot</span>
+              <span class="text-xs text-base-content/50 shrink-0">09:47</span>
+            </label>
+            <button type="button" class="badge badge-success badge-sm shrink-0" data-event-billable="3" aria-pressed="true">Billable</button>
+          </div>
+          
+          <div class="flex items-center gap-2 py-1.5">
+            <input type="checkbox" class="checkbox checkbox-sm shrink-0" id="report-event-include-4" checked data-event-include="4" />
+            <label for="report-event-include-4" class="flex-1 min-w-0 flex items-center gap-2 cursor-pointer">
+              
+<span class="icon icon-search w-4 h-4 shrink-0 text-base-content/60 inline-block shrink-0 [&_svg]:w-full [&_svg]:h-full [&_svg]:block" role="img" aria-hidden="true">
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true">
+  <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+</svg>
+
+</span>
+
+              <span class="text-sm text-base-content truncate flex-1">System Scan</span>
+              <span class="text-xs text-base-content/50 shrink-0">09:45</span>
+            </label>
+            <button type="button" class="badge badge-success badge-sm shrink-0" data-event-billable="4" aria-pressed="true">Billable</button>
+          </div>
+          
+          
+        </div>
+      </div>
+
+      <div>
+        <label class="label" for="report-input-notes"><span class="label-text text-xs font-semibold uppercase tracking-wide text-base-content/50">Notes</span></label>
+        <textarea class="textarea textarea-bordered text-sm w-full" id="report-input-notes" rows="3" placeholder="Add notes for the customer or technician…"></textarea>
+      </div>
+
+      <div>
+        <p class="text-xs font-semibold uppercase tracking-wide text-base-content/50 mb-2">Images</p>
+        <div class="flex gap-2">
+          <button type="button" class="btn btn-outline btn-square h-16 w-16" aria-label="Add image" disabled>
+<span class="icon icon-plus w-5 h-5 inline-block shrink-0 [&_svg]:w-full [&_svg]:h-full [&_svg]:block" role="img" aria-hidden="true">
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+  <line x1="12" y1="5" x2="12" y2="19"/>
+  <line x1="5" y1="12" x2="19" y2="12"/>
+</svg>
+
+</span>
+</button>
+          <button type="button" class="btn btn-outline btn-square h-16 w-16" aria-label="Add image" disabled>
+<span class="icon icon-plus w-5 h-5 inline-block shrink-0 [&_svg]:w-full [&_svg]:h-full [&_svg]:block" role="img" aria-hidden="true">
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+  <line x1="12" y1="5" x2="12" y2="19"/>
+  <line x1="5" y1="12" x2="19" y2="12"/>
+</svg>
+
+</span>
+</button>
+        </div>
+      </div>
+    </div>
+    </div>
+
+    
+    <div class="flex flex-col gap-3 min-h-0 min-w-0">
+      <p class="text-xs font-semibold uppercase tracking-wide text-base-content/50">Live Preview</p>
+      <div class="flex-1 min-h-0 min-w-0 overflow-auto bg-base-200/40 rounded-box p-4">
+        <div data-report-preview-root>
+          
+
+
+<div class="session-report-print @container bg-base-100 border border-base-200 rounded-box p-6 sm:p-8 print:border-0 print:rounded-none print:p-0 print:shadow-none flex flex-col gap-6">
+  <div class="flex items-start justify-between gap-4 border-b border-base-200 pb-4">
+    <div class="min-w-0">
+      
+      
+<span class="brand-logo h-4 w-auto opacity-70 mb-1 inline-block [&_svg]:w-full [&_svg]:h-full [&_svg]:block" data-brand-logo="autocom" role="img" aria-label="Autocom">
+  <svg width="105" height="22" viewBox="0 0 105 22" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_15275_29243-u509)">
+<path d="M53.1614 19.4296L49.7086 12.9987H48.8715C48.453 12.9987 48.1391 12.6925 48.1391 12.1821C48.1391 11.7738 48.453 11.3655 48.8715 11.3655H50.2317C50.5456 11.3655 50.7549 11.5696 50.8595 11.7738L53.0568 15.9589V5.3429C53.0568 4.93459 53.2661 4.62836 53.6846 4.62836C53.9985 4.52628 54.417 4.73044 54.5217 5.03667L57.9745 11.4675H58.8116C59.2301 11.4675 59.544 11.7738 59.544 12.2842C59.544 12.7945 59.2301 13.1008 58.8116 13.1008H57.4514C57.1375 13.1008 56.9282 12.8966 56.8236 12.6925L54.6263 8.5073V19.2254C54.6263 19.6337 54.417 19.94 53.9985 20.042C53.6846 19.94 53.2661 19.7358 53.1614 19.4296Z" fill="currentColor"/>
+<path d="M104.745 5.13869C104.954 5.75115 104.954 6.874 104.954 8.30309V20.3482C104.85 20.5524 104.745 20.7565 104.431 20.7565H100.351C100.037 20.7565 99.8274 20.4503 99.8274 20.1441V9.32386C99.8274 7.7927 99.7228 6.874 99.7228 6.56777C99.6181 6.26154 99.4089 6.05738 98.9903 6.05738C98.5718 6.05738 98.3625 6.26154 98.2579 6.56777C98.1533 6.874 98.0486 7.89478 98.0486 9.32386V20.2461C98.0486 20.5524 97.8394 20.7565 97.5255 20.7565H93.4448C93.1309 20.7565 92.9217 20.4503 92.9217 20.2461V9.63009C92.9217 7.89478 92.9217 6.874 92.817 6.56777C92.7124 6.26154 92.5031 6.05738 92.0846 6.05738C91.8753 6.05738 91.6661 6.15946 91.4568 6.36362C91.2476 6.56777 91.2475 6.77193 91.1429 7.07816C91.1429 7.38439 91.1429 7.89478 91.1429 8.71139V20.2461C91.1429 20.5524 90.9337 20.8586 90.6198 20.8586H86.5391C86.2252 20.8586 86.0159 20.6544 86.0159 20.3482V3.70961C86.0159 3.40337 86.3298 3.19922 86.6437 3.19922H90.7244C91.0383 3.19922 91.2476 3.50545 91.2476 3.81168V4.93453C91.6661 4.21999 92.1892 3.81168 92.7124 3.40337C93.2356 2.99506 93.8634 2.89299 94.5958 2.89299C96.0606 2.89299 97.107 3.60753 97.944 4.93453C98.3625 4.21999 98.8857 3.81168 99.4089 3.40337C100.037 2.99506 100.664 2.89299 101.292 2.89299C102.234 2.89299 102.966 3.09714 103.49 3.60753C104.222 4.01584 104.536 4.52622 104.745 5.13869ZM25.957 3.19922C26.2709 3.19922 26.4802 3.40337 26.4802 3.70961V20.2461C26.4802 20.5524 26.1663 20.7565 25.8524 20.7565H21.6671C21.3532 20.7565 21.144 20.4503 21.144 20.1441V19.2254C20.8301 19.7357 20.3069 20.2461 19.7837 20.5524C19.2606 20.8586 18.6328 20.9607 17.9004 20.9607C17.0633 20.9607 16.4355 20.8586 15.9124 20.5524C15.3892 20.2461 14.9707 19.8378 14.7614 19.4295C14.5521 18.9191 14.3429 18.5108 14.3429 17.8984C14.2382 17.388 14.2382 16.3672 14.2382 14.836V3.70961C14.2382 3.40337 14.5521 3.19922 14.866 3.19922H19.0513C19.3652 3.19922 19.5745 3.50545 19.5745 3.70961V15.1423C19.5745 16.4693 19.5745 17.388 19.6791 17.5921C19.7837 17.7963 19.993 18.0004 20.3069 18.0004C20.7254 18.0004 20.9347 17.8984 21.0393 17.5921C21.144 17.2859 21.144 16.4693 21.144 15.0402V3.81168C21.144 3.50545 21.4579 3.19922 21.7718 3.19922H25.957ZM10.5761 3.81168C11.5178 4.42415 12.041 5.24077 12.2502 6.15946C12.4595 7.07816 12.5641 9.01763 12.5641 11.9779V20.3482C12.4595 20.5524 12.2502 20.7565 12.041 20.7565H7.85567C7.54178 20.7565 7.33251 20.5524 7.22788 20.2461V19.2254C6.91398 19.8378 6.49545 20.2461 5.97229 20.6544C5.44913 20.9607 4.82134 21.1648 4.08891 21.1648C3.14722 21.1648 2.31016 20.8586 1.57774 20.3482C0.845313 19.8378 0.426785 18.715 0.426785 16.8776V15.4485C0.426785 14.1215 0.636049 13.2028 1.05458 12.6924C1.47311 12.2841 2.51943 11.7737 4.08891 11.0592C5.86766 10.3446 6.80935 9.93632 6.91398 9.63009C7.12325 9.42594 7.12325 9.01763 7.12325 8.20101C7.12325 7.28231 7.01861 6.66985 6.91398 6.36362C6.80935 6.15946 6.49545 5.95531 6.28619 6.05738C5.86766 6.05738 5.6584 6.15946 5.55376 6.36362C5.44913 6.56777 5.44913 7.18023 5.44913 8.20101V9.52801C5.44913 9.73217 5.23987 9.93632 5.0306 10.0384H0.949946C0.740681 10.0384 0.426785 9.83425 0.426785 9.52801V8.81347C0.426785 7.48647 0.636049 6.36362 0.845313 5.64907C1.26384 4.93453 1.787 4.32207 2.83333 3.70961C3.77502 3.19922 4.92597 2.89299 6.49545 2.89299C8.2742 2.89299 9.63442 3.19922 10.5761 3.81168ZM7.12325 12.4883C6.28619 13.1007 5.76303 13.6111 5.6584 14.0194C5.55376 14.4277 5.44913 15.0402 5.44913 15.8568C5.44913 16.7755 5.55376 17.388 5.6584 17.5921C5.76303 17.8984 5.97229 18.0004 6.39082 18.0004C6.70472 18.0004 6.91398 17.8984 7.01861 17.6942C7.12325 17.49 7.12325 16.9797 7.12325 16.061V12.4883ZM35.2693 18.0004C35.4786 18.1025 35.6878 18.3067 35.6878 18.5108V20.2461C35.6878 20.5524 35.4786 20.7565 35.1647 20.7565H33.4906C32.6535 20.7565 31.7118 20.7565 30.8748 20.5524C29.8284 20.3482 28.9914 19.5316 28.7821 18.6129C28.7821 18.3067 28.6775 17.1838 28.6775 15.3464V6.46569H28.0497C27.7358 6.46569 27.5265 6.15946 27.5265 5.85323V4.21999C27.5265 3.91376 27.7358 3.70961 28.0497 3.60753H28.6775V1.36183C28.6775 1.0556 28.8867 0.85144 29.2006 0.85144H33.4906C33.6998 0.85144 33.9091 1.0556 34.0137 1.36183V3.70961H34.9554C35.2693 3.70961 35.4786 3.91376 35.4786 4.21999V5.95531C35.4786 6.26154 35.2693 6.46569 34.9554 6.46569H34.0137V16.4693C34.1184 17.49 34.7462 17.8984 35.2693 18.0004ZM83.1909 4.83246C83.6094 5.44492 83.9233 5.95531 84.1326 6.56777C84.3418 7.18023 84.4465 8.09893 84.4465 9.32386V13.6111C84.4465 15.1423 84.3418 16.3672 84.2372 17.0817C84.1326 17.7963 83.714 18.5108 83.1909 19.1233C82.6677 19.7357 81.9353 20.2461 81.2029 20.5524C80.3658 20.8586 79.4241 20.9607 78.3778 20.9607C77.3315 20.9607 76.3898 20.8586 75.3435 20.5524C73.8786 20.1441 72.7277 18.9191 72.4138 17.49C72.2045 16.7755 72.0999 15.6527 72.0999 14.1215V9.83425C72.0999 8.20101 72.3091 6.874 72.623 5.95531C72.9369 5.03661 73.6693 4.21999 74.5064 3.70961C75.4481 3.19922 76.599 2.89299 78.0639 2.89299C79.2148 2.89299 80.2612 3.09714 81.0982 3.40337C82.0399 3.81168 82.6677 4.21999 83.1909 4.83246ZM79.0056 8.09893C79.0056 7.18023 79.0056 6.66985 78.901 6.36362C78.7963 6.15946 78.5871 6.05738 78.2732 6.05738C77.9593 6.05738 77.75 6.15946 77.6454 6.36362C77.5407 6.56777 77.4361 7.18023 77.4361 8.09893V16.061C77.4361 16.8776 77.5407 17.388 77.5407 17.6942C77.6454 18.0004 77.8546 18.1025 78.1685 18.1025C78.4824 18.1025 78.6917 18.0004 78.7963 17.7963C78.901 17.5921 78.901 17.0817 78.901 16.2651V8.09893H79.0056ZM70.2165 13.6111C70.5304 13.7132 70.7396 13.9173 70.7396 14.2236C70.7396 15.0402 70.7396 15.9589 70.635 16.7755C70.5304 17.49 70.2165 18.2046 69.6933 18.9191C69.1702 19.6337 68.5424 20.2461 67.7053 20.5524C66.8683 20.9607 65.9266 21.1648 64.671 21.1648C63.4154 21.2669 62.1598 20.9607 61.1135 20.3482C60.2764 19.8378 59.544 19.1233 59.2301 18.2046C58.9162 17.2859 58.7069 16.061 58.7069 14.4277C58.7069 14.1215 58.9162 13.9173 59.2301 13.9173C60.0672 13.7132 60.6949 12.9986 60.6949 12.182C60.6949 11.2633 60.0672 10.5488 59.2301 10.4467C58.9162 10.4467 58.7069 10.2426 58.7069 9.93632V9.22178C58.7069 7.69062 58.8116 6.56777 59.1255 5.85323C59.4394 5.13869 60.0672 4.42415 61.0088 3.81168C62.1598 3.19922 63.4154 2.89299 64.671 2.89299C66.0312 2.89299 67.2868 3.19922 68.2285 3.81168C69.1702 4.32207 69.7979 5.13869 70.2165 6.05738C70.5304 6.874 70.635 7.89478 70.7396 9.32386C70.7396 9.63009 70.5304 9.83424 70.2165 9.93632H66.2405C65.9266 9.93632 65.7173 9.63009 65.7173 9.42594V7.7927C65.7173 7.07816 65.6127 6.56777 65.508 6.36362C65.4034 6.05738 65.1941 5.95531 64.8802 5.95531C64.5663 5.95531 64.3571 6.15946 64.2524 6.36362C64.1478 6.56777 64.1478 7.07816 64.1478 7.89478V16.163C64.1478 16.7755 64.2524 17.2859 64.3571 17.5921C64.4617 17.8984 64.7756 18.1025 65.0895 18.1025C65.4034 18.1025 65.7173 17.8984 65.8219 17.5921C65.9266 17.2859 66.0312 16.6734 66.0312 15.7547V14.1215C66.0312 13.8153 66.2405 13.6111 66.5543 13.509L70.2165 13.6111ZM47.5113 4.83246C48.0344 5.44492 48.3483 5.95531 48.5576 6.56777C48.7669 7.18023 48.8715 8.09893 48.8715 9.32386V9.73217C48.8715 10.0384 48.6622 10.2426 48.3483 10.2426C47.4067 10.3446 46.6742 11.0592 46.6742 11.9779C46.6742 12.8966 47.4067 13.7132 48.3483 13.7132C48.6622 13.7132 48.8715 13.9173 48.8715 14.2236C48.8715 15.4485 48.7669 16.3672 48.6622 16.9797C48.5576 17.6942 48.1391 18.4087 47.6159 19.0212C47.0928 19.6337 46.3603 20.1441 45.6279 20.4503C44.7908 20.7565 43.8492 20.8586 42.8028 20.8586C41.7565 20.8586 40.8148 20.7565 39.7685 20.4503C38.3036 20.042 37.1527 18.8171 36.8388 17.388C36.6295 16.6734 36.5249 15.5506 36.5249 14.0194V9.83425C36.5249 8.20101 36.7342 6.874 37.0481 5.95531C37.362 5.03661 38.0944 4.21999 38.9314 3.70961C39.8731 3.19922 41.0241 2.89299 42.4889 2.89299C43.6399 2.89299 44.6862 3.09714 45.5233 3.40337C46.465 3.81168 47.0928 4.21999 47.5113 4.83246ZM43.4306 8.09893C43.4306 7.18023 43.4306 6.66985 43.326 6.36362C43.2214 6.15946 43.0121 6.05738 42.6982 6.05738C42.3843 6.05738 42.175 6.15946 42.0704 6.36362C41.9658 6.56777 41.8611 7.18023 41.8611 8.09893V16.061C41.8611 16.8776 41.9658 17.388 41.9658 17.6942C42.0704 18.0004 42.2797 18.1025 42.5936 18.1025C42.9075 18.1025 43.1167 18.0004 43.2214 17.7963C43.326 17.5921 43.326 17.0817 43.326 16.2651V8.09893H43.4306Z" fill="currentColor"/>
+</g>
+<defs>
+<clipPath id="clip0_15275_29243-u509">
+<rect width="105" height="22" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+
+</span>
+<span class="brand-logo h-4 w-auto opacity-70 mb-1 inline-block [&_svg]:w-full [&_svg]:h-full [&_svg]:block" data-brand-logo="wow" role="img" aria-label="WOW">
+  <svg width="60" height="16" viewBox="0 0 60 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M43.5609 13.7315C43.5726 13.6869 43.5813 13.6527 43.5886 13.6171C43.7375 12.907 43.8821 12.1955 44.0339 11.4869C44.1755 10.8244 44.3156 10.1619 44.4689 9.50239C44.6441 8.74927 44.8382 8.0006 45.0149 7.24748C45.0747 6.99347 45.1068 6.73501 45.1565 6.47802C45.1638 6.44237 45.1959 6.41118 45.2178 6.3785C45.2411 6.41266 45.2674 6.44534 45.2893 6.481C45.2952 6.48991 45.2922 6.50476 45.2952 6.51665C45.447 7.25046 45.5915 7.98575 45.7521 8.71807C45.8324 9.08647 45.9725 9.44297 46.0294 9.81285C46.2236 11.0725 46.3944 12.3366 46.5696 13.5992C46.5842 13.7032 46.6163 13.7374 46.7243 13.7374C48.0469 13.7344 49.368 13.7374 50.6906 13.7418C50.8074 13.7418 50.8468 13.7047 50.876 13.5978C51.8906 9.96882 52.9096 6.34136 53.9271 2.71391C53.9387 2.6738 53.9475 2.63369 53.9577 2.58764C53.9022 2.5817 53.8949 2.57576 53.8482 2.58764L50.8979 2.56982C50.5987 2.57576 50.5184 2.55794 50.4892 2.67529C50.3534 3.21599 50.2133 3.7552 50.0761 4.29442C49.6264 6.06953 49.1199 7.83275 48.8746 9.6539C48.8702 9.6851 48.8381 9.71332 48.8192 9.74303C48.7973 9.71184 48.7608 9.68361 48.7535 9.64945C48.6498 9.0731 48.5812 8.48932 48.4425 7.92188C48.0148 6.16608 47.5593 4.41623 47.117 2.66192C47.0951 2.57725 47.0513 2.56982 46.9798 2.56982C45.8718 2.56982 44.7638 2.56982 43.6543 2.56536C43.5638 2.56536 43.5302 2.59656 43.5069 2.67826C43.3521 3.22193 43.1886 3.76263 43.0354 4.3063C42.5288 6.09032 41.9317 7.85206 41.6179 9.68658C41.6135 9.71629 41.5755 9.74006 41.5536 9.7668C41.5332 9.73412 41.5011 9.70292 41.4953 9.66727C41.3755 8.95575 41.2938 8.23679 41.1361 7.53269C40.7741 5.90464 40.3756 4.28551 39.9946 2.66192C39.9741 2.57576 39.9347 2.55942 39.8544 2.55942C38.799 2.55942 37.7421 2.55942 36.6866 2.55794C36.653 2.55794 36.618 2.56239 36.5786 2.56536C36.5873 2.60844 36.5932 2.63964 36.6019 2.67083C37.5961 6.31017 38.5917 9.94802 39.5829 13.5874C39.6106 13.6899 39.65 13.724 39.761 13.724C40.9829 13.7211 42.2033 13.724 43.4251 13.724C43.4689 13.724 43.501 13.724 43.501 13.724M57.6613 10.7531C57.6613 10.7531 57.597 10.7531 57.5576 10.7531C56.435 10.7531 55.3124 10.7531 54.1884 10.7472C54.0876 10.7472 54.0511 10.7769 54.0278 10.872C53.8365 11.6132 53.6409 12.3544 53.4468 13.0942C53.3928 13.2977 53.3417 13.5012 53.2862 13.7136C53.33 13.7166 53.3621 13.7211 53.3928 13.7211C54.5081 13.7225 55.6219 13.7225 56.7372 13.727C56.8233 13.727 56.854 13.6988 56.8759 13.62C57.1036 12.8134 57.3343 12.0083 57.5649 11.2032C57.6058 11.0591 57.6467 10.9136 57.6934 10.7531" fill="currentColor"/>
+<path d="M27.614 0.00148548C27.8563 0.0252526 28.0986 0.0460488 28.3409 0.0742722C30.1759 0.288176 31.8591 0.88681 33.2985 2.06922C34.8853 3.37344 35.7992 5.05794 36.0561 7.08706C36.2809 8.85622 35.9991 10.5377 35.078 12.0782C33.9189 14.0167 32.2051 15.2169 30.0051 15.7353C29.2387 15.9165 28.4592 16.0146 27.6694 15.9982C27.0125 15.9834 26.3527 16.0012 25.6987 15.9418C23.9381 15.7799 22.3104 15.2421 20.9207 14.1162C19.0726 12.6189 18.0886 10.6789 18.0229 8.30661C17.9631 6.1542 18.6098 4.23946 20.1119 2.65449C21.2141 1.4899 22.5805 0.766489 24.1221 0.356507C24.833 0.167855 25.5571 0.0594178 26.2928 0.0193108C26.341 0.0163399 26.3877 0.00742722 26.4344 0C26.8271 0 27.2198 0 27.614 0M27.1439 12.4406C27.4227 12.4124 27.7045 12.4035 27.9804 12.3544C29.573 12.0767 30.6781 11.2003 31.1978 9.66282C31.5569 8.59924 31.5482 7.51635 31.1818 6.45129C30.7686 5.24808 29.9526 4.41029 28.7555 3.9602C27.9307 3.64974 27.0753 3.57844 26.2096 3.73589C24.7381 4.00476 23.6695 4.80838 23.1338 6.21064C22.6024 7.6025 22.7075 8.98842 23.3819 10.3149C23.8024 11.1423 24.4724 11.7246 25.3337 12.0811C25.9118 12.3203 26.5176 12.4183 27.1424 12.4376" fill="currentColor"/>
+<path d="M0 2.53268C0.0364955 2.52971 0.0715311 2.52525 0.108027 2.52525C1.1591 2.52525 2.20871 2.52823 3.25977 2.52674C3.34298 2.52674 3.38532 2.54159 3.40722 2.63518C3.79553 4.29739 4.20136 5.95663 4.57361 7.62181C4.71959 8.27541 4.79258 8.94386 4.90207 9.60488C4.90791 9.63756 4.94294 9.66579 4.96338 9.69698C4.98382 9.66876 5.0174 9.64202 5.02323 9.61083C5.29476 8.00506 5.79402 6.45871 6.2451 4.90048C6.46262 4.15033 6.68451 3.40018 6.90056 2.64855C6.92684 2.55942 6.96187 2.5312 7.0553 2.5312C8.15454 2.53565 9.25233 2.53565 10.3516 2.53714C10.4187 2.53714 10.4698 2.53714 10.4917 2.62329C10.9151 4.29739 11.3545 5.96852 11.7632 7.64707C11.918 8.28581 12.0026 8.94089 12.1209 9.58854C12.1267 9.61974 12.1588 9.64648 12.1778 9.6747C12.1997 9.64648 12.2347 9.62122 12.2391 9.59151C12.4508 7.99763 12.8683 6.44831 13.2683 4.89602C13.4595 4.15479 13.6508 3.41355 13.8362 2.66934C13.861 2.56982 13.9018 2.54011 14.004 2.54011C15.058 2.54457 16.1135 2.54457 17.1675 2.54605C17.2069 2.54605 17.2463 2.54605 17.3003 2.54605C17.2156 2.85205 17.1353 3.1432 17.0536 3.43286C16.1149 6.78105 15.1734 10.1292 14.2391 13.4789C14.2026 13.6082 14.1544 13.6512 14.0157 13.6512C12.7121 13.6438 11.4085 13.6438 10.1063 13.6453C10.0085 13.6453 9.96326 13.6319 9.9472 13.5161C9.77348 12.2549 9.60268 10.9938 9.40561 9.73709C9.34138 9.32562 9.18956 8.92901 9.09905 8.52051C8.95161 7.85057 8.82314 7.17618 8.68592 6.50476C8.68154 6.48099 8.683 6.45574 8.67278 6.43494C8.65526 6.39781 8.63045 6.36216 8.60855 6.32651C8.58519 6.36067 8.55016 6.39335 8.5414 6.43197C8.50052 6.63102 8.46695 6.83156 8.43191 7.03209C8.28739 7.85503 8.05966 8.65568 7.85236 9.46377C7.59689 10.4516 7.43777 11.4647 7.1896 12.454C7.10202 12.803 7.04216 13.1566 6.98523 13.5116C6.96917 13.6141 6.94144 13.6453 6.84801 13.6453C5.613 13.6408 4.378 13.6394 3.14299 13.6423C3.04664 13.6423 3.02328 13.5992 3.00285 13.5235C2.09776 10.2065 1.19413 6.8984 0.289044 3.58883C0.207294 3.28877 0.125544 2.98871 0.0437945 2.68865C0.0335758 2.65152 0.0145982 2.61587 0 2.58022C0 2.56388 0 2.59061 0 2.59061" fill="currentColor"/>
+<path d="M59.9985 2.62775C59.8861 3.01397 59.7708 3.40018 59.6613 3.7864C59.127 5.66994 58.5913 7.55348 58.0614 9.43703C58.0322 9.54398 57.9913 9.57963 57.876 9.57815C56.7855 9.5722 55.695 9.5722 54.6045 9.57072C54.5607 9.57072 54.5169 9.57072 54.4585 9.57072C54.5417 9.26323 54.622 8.96911 54.7023 8.675C55.2483 6.68302 55.7943 4.69103 56.3373 2.69757C56.3636 2.6025 56.4015 2.57576 56.4994 2.57576C57.6176 2.58022 58.7358 2.58022 59.8555 2.5817C59.9036 2.5817 59.9518 2.58022 60 2.57873C60 2.59507 60 2.58913 60 2.58913" fill="currentColor"/>
+</svg>
+
+</span>
+<span class="brand-logo h-4 w-auto opacity-70 mb-1 inline-block [&_svg]:w-full [&_svg]:h-full [&_svg]:block" data-brand-logo="wabco" role="img" aria-label="Wabco">
+  <svg width="78" height="32" viewBox="0 0 78 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_16177_856-u511)">
+<mask id="mask0_16177_856-u511" style="mask-type:luminance" maskUnits="userSpaceOnUse" x="39" y="0" width="39" height="23">
+<path d="M67.6293 0.190077C67.0468 0.408106 66.6315 0.821803 66.6315 0.821803L57.8988 9.28022L51.7155 3.28721C51.7155 3.28721 50.4005 1.92313 48.324 1.92313C46.2475 1.92313 44.9382 3.2928 44.9382 3.2928L39.5452 8.51991L46.2879 15.0552L48.3355 13.0706L57.9276 22.3676L77.3829 3.52201C77.3829 3.52201 77.9943 2.98532 78.0001 2.10762V2.07966C78.0001 1.85045 77.954 1.59888 77.8501 1.33054C77.3368 0.00559062 75.8775 0 75.8775 0H68.6964C68.6964 0 68.6733 0 68.6329 0C68.483 0 68.0908 0.0167715 67.6293 0.190077Z" fill="white"/>
+</mask>
+<g mask="url(#mask0_16177_856-u511)">
+<path d="M78 0H39.5566V22.3732H78V0Z" fill="url(#paint0_linear_16177_856-u511)"/>
+</g>
+<mask id="mask1_16177_856-u511" style="mask-type:luminance" maskUnits="userSpaceOnUse" x="0" y="0" width="78" height="32">
+<path d="M78 0H0.536377V32H78V0Z" fill="white"/>
+</mask>
+<g mask="url(#mask1_16177_856-u511)">
+<path d="M64.1281 30.7812H65.6508L64.5549 28.9587C65.1605 28.7128 65.5066 28.2376 65.5066 27.6114C65.5066 26.6778 64.8721 26.0629 63.6205 26.0629H61.2153V30.7812H62.5361V29.1488H63.2052L64.1281 30.7812ZM64.1858 27.6114C64.1858 27.9469 63.9493 28.1873 63.459 28.1873H62.5361V27.0412H63.459C63.9493 27.0412 64.1858 27.2816 64.1858 27.617M58.8504 27.399V28.9084C58.8504 29.5905 58.5043 29.8309 58.0602 29.8309C57.6161 29.8309 57.2642 29.5905 57.2642 28.914V27.399H55.9145V28.9755C55.9145 30.2166 56.624 30.8986 58.0602 30.8986C59.4964 30.8986 60.2001 30.2166 60.2001 28.9811V27.399H58.8504ZM57.2584 26.0685H55.9087V26.9573H57.2584V26.0685ZM58.8504 26.9573H60.2001V26.0685H58.8504V26.9573ZM50.3427 29.1935L49.662 26.0685H48.3181L49.5582 30.7868H50.9829L51.8193 27.7121L52.6498 30.7868H54.0745L55.3146 26.0685H53.9707L53.2901 29.1935L52.4422 26.0685H51.1906L50.3427 29.1935ZM73.5817 27.7568H71.9436V26.0685H70.5939V30.7868H71.9436V28.8246H73.5817V30.7868H74.9372V26.0685H73.5817V27.7568ZM67.2601 27.0971V30.7868H68.6098V27.0971H69.8614V26.0685H66.0027V27.0971H67.2543H67.2601Z" fill="currentColor"/>
+<path d="M46.282 27.4996H39.3027V24.6038H42.204V25.7442H43.3749V24.6038H46.2762V27.4996H46.282ZM43.3807 30.8651V32C45.0476 31.6981 46.282 30.2837 46.282 28.7016V28.6401H39.3027V28.7016C39.3027 30.2837 40.5371 31.6925 42.204 32V30.8651H43.3749H43.3807Z" fill="#ED1D24"/>
+<path d="M27.9341 29.0482C27.9571 29.8364 27.9918 30.7756 26.3537 30.7868H24.7213C23.0602 30.7924 23.1928 29.6128 23.1409 28.9811V27.248C23.1409 26.5716 23.4351 26.0069 24.7271 26.0181H26.2383C27.6572 26.0125 27.9398 26.5716 27.9398 27.248V27.5834H26.0653C26.0653 27.1642 25.973 26.9014 25.6961 26.8679H25.3904C25.1136 26.8679 25.0213 27.1977 25.0213 27.617V28.696C25.0501 29.1208 25.0328 29.8029 25.4366 29.8029H25.6557C25.9787 29.8085 26.0364 29.473 26.0537 29.0482H27.9341Z" fill="#005BAA"/>
+<path d="M7.93659 27.863L7.48092 30.8092H4.7123L3.67407 26.1746H5.46214L6.03893 29.5122L6.75993 26.1746H9.10748L9.82271 29.5122L10.4053 26.1746H12.1933L11.1609 30.8092H8.38649L7.93659 27.863Z" fill="#005BAA"/>
+<path fill-rule="evenodd" clip-rule="evenodd" d="M15.3196 30.1159L15.5041 30.7868H17.4652L15.9886 26.1411H13.3181L11.8992 30.7868H13.7968L13.9641 30.1159H15.3253H15.3196ZM14.2121 29.1935L14.662 27.5387L15.0888 29.1935H14.2121Z" fill="#005BAA"/>
+<path fill-rule="evenodd" clip-rule="evenodd" d="M21.3413 30.7868H17.8113V26.1355H21.797C22.2757 26.1187 22.6506 26.3871 22.6449 27.002V27.4157C22.6449 27.4157 22.6737 28.1816 21.9527 28.2767C22.7198 28.4667 22.7025 29.2997 22.7025 29.2997V29.6743C22.691 30.7253 21.8143 30.8036 21.3471 30.7868M19.7897 27.9301V26.9853H20.3377C20.5107 26.9853 20.6549 27.125 20.6549 27.2927V27.6226C20.6549 27.7903 20.5107 27.9301 20.3377 27.9301H19.7897ZM19.7897 29.7973V28.8189H20.3492C20.5223 28.8189 20.6665 28.9587 20.6665 29.1264V29.4898C20.6665 29.6575 20.5338 29.8141 20.3608 29.7973H19.7897Z" fill="#005BAA"/>
+<path fill-rule="evenodd" clip-rule="evenodd" d="M29.9702 30.7868C28.4128 30.7868 28.4186 29.6519 28.3897 28.9811V27.248C28.3897 26.5716 28.9608 26.0181 29.6587 26.0181H32.2658C32.9637 26.0181 33.5348 26.5716 33.5348 27.248V28.9811C33.529 29.6407 33.5175 30.7812 31.9486 30.7868H29.9702ZM30.7719 29.7861C30.3681 29.7861 30.322 29.1208 30.322 28.6904V27.589C30.322 27.1697 30.4143 26.8343 30.6912 26.8399H31.2391C31.5102 26.8399 31.6429 27.1697 31.6313 27.589V28.6904C31.6313 29.1041 31.6083 29.7805 31.1987 29.7861H30.7719Z" fill="#005BAA"/>
+</g>
+<mask id="mask2_16177_856-u511" style="mask-type:luminance" maskUnits="userSpaceOnUse" x="0" y="0" width="46" height="21">
+<path d="M19.5073 9.30258L10.7573 0.821803C10.7573 0.821803 10.3709 0.391335 9.93829 0.195667C9.51146 0 9.02118 0 9.02118 0H3.43781C3.28207 0 1.48824 0.0391336 0.761479 1.75542C0.000109076 3.54997 1.40172 4.80224 1.40172 4.80224L16.1388 19.0748C16.1388 19.0748 17.477 20.4724 19.5189 20.4724C21.5607 20.4724 22.8989 19.086 22.8989 19.086L29.0821 13.0874L35.3 19.1139C35.3 19.1139 36.5631 20.4724 38.6915 20.4724C40.8199 20.4724 42.1177 19.1195 42.1177 19.1195L45.4689 15.8658L29.1052 0L19.5073 9.30258Z" fill="white"/>
+</mask>
+<g mask="url(#mask2_16177_856-u511)">
+<path d="M45.4688 0H0V20.4724H45.4688V0Z" fill="url(#paint1_linear_16177_856-u511)"/>
+</g>
+</g>
+<defs>
+<linearGradient id="paint0_linear_16177_856-u511" x1="78.161" y1="11.1592" x2="39.7176" y2="11.1592" gradientUnits="userSpaceOnUse">
+<stop stop-color="#ED1C24"/>
+<stop offset="0.35" stop-color="#ED1C24"/>
+<stop offset="0.43" stop-color="#D8181F"/>
+<stop offset="0.82" stop-color="#790608"/>
+<stop offset="1" stop-color="#540000"/>
+</linearGradient>
+<linearGradient id="paint1_linear_16177_856-u511" x1="1.53197" y1="12.5417" x2="46.4643" y2="12.5417" gradientUnits="userSpaceOnUse">
+<stop stop-color="#005BAB"/>
+<stop offset="0.35" stop-color="#005BAB"/>
+<stop offset="0.49" stop-color="#004C97"/>
+<stop offset="0.78" stop-color="#002865"/>
+<stop offset="1" stop-color="#000A3C"/>
+</linearGradient>
+<clipPath id="clip0_16177_856-u511">
+<rect width="78" height="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+
+</span>
+
+      <h1 class="text-xl font-semibold text-base-content">Diagnostic Session Report</h1>
+      <p class="text-xs text-base-content/50 mt-1 truncate">
+        Report ID: <span data-field="fileName">Volvo-XC60-2014-Session-4-Report</span>
+        <span>&#8226;</span> Date: <span data-field="date"></span>
+        <span>&#8226;</span> Mechanic: <span data-field="mechanic">David Ramm</span>
+      </p>
+    </div>
+    <div class="text-right shrink-0">
+      <span class="badge badge-neutral badge-sm font-semibold">Session 4</span>
+      
+      <p class="text-xs text-base-content/60 mt-1">RO #RO-4521</p>
+      
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 @[420px]:grid-cols-2 gap-6">
+    <div>
+      <p class="text-xs font-semibold uppercase tracking-wide text-base-content/50 mb-2">Vehicle</p>
+      <div class="flex items-center gap-3">
+        
+        <div class="avatar shrink-0">
+          <div class="size-9 mask rounded-md bg-neutral-content/90">
+            <img src="/diagnostics-pub/assets/images/brands/volvo.png" alt="" />
+          </div>
+        </div>
+        
+        <div class="min-w-0">
+          <p class="font-medium text-base-content truncate">Volvo XC60 (2014)</p>
+          <p class="text-sm text-base-content/60 truncate">YXC 123 <span>&#8226;</span> Diesel</p>
+        </div>
+      </div>
+      <dl class="mt-3 flex flex-col gap-1 text-sm">
+        <div class="flex justify-between gap-4"><dt class="text-base-content/60">VIN</dt><dd class="font-mono text-base-content">YV1LZA8XCB9577712</dd></div>
+        <div class="flex justify-between gap-4"><dt class="text-base-content/60">Mileage</dt><dd class="text-base-content">48,632 km</dd></div>
+      </dl>
+    </div>
+    <div>
+      <p class="text-xs font-semibold uppercase tracking-wide text-base-content/50 mb-2">Customer</p>
+      <dl class="flex flex-col gap-1 text-sm">
+        <div class="flex justify-between gap-4"><dt class="text-base-content/60">Name</dt><dd class="text-base-content text-right" data-field="customerName">Anders Björk</dd></div>
+        <div class="flex justify-between gap-4"><dt class="text-base-content/60">Telephone</dt><dd class="text-base-content" data-field="customerPhone">070-123 45 67</dd></div>
+        <div class="flex justify-between gap-4"><dt class="text-base-content/60">Session</dt><dd class="text-base-content text-right" data-field="sessionSummary">Apr 28 · 09:45 – 10:02 · 17 min</dd></div>
+      </dl>
+    </div>
+  </div>
+
+  <div>
+    <p class="text-xs font-semibold uppercase tracking-wide text-base-content/50 mb-2">Diagnostic Events</p>
+    <div class="flex flex-col border-t border-base-200" data-event-rows>
+      
+      
+      
+      
+      <div class="flex flex-wrap items-center gap-x-3 gap-y-1 py-2.5 border-b border-base-200" data-event-row="0">
+        <span class="text-xs text-base-content/50 w-12 shrink-0">09:58</span>
+        
+<span class="icon icon-engine w-4 h-4 shrink-0 text-success inline-block shrink-0 [&_svg]:w-full [&_svg]:h-full [&_svg]:block" role="img" aria-hidden="true">
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M21.8999 9.79968H19.6998V10.8996L18.5999 10.8998V8.48981C18.6006 8.28522 18.5441 8.08467 18.4366 7.91085C18.329 7.73702 18.1751 7.59668 17.9918 7.50571L16.2118 6.6157C16.059 6.53964 15.8906 6.50005 15.7199 6.49968H13.0998V5.39974H15.2999V4.2998H7.60001V5.39974H9.80008L9.7999 6.49968H7.22711C6.99711 6.49913 6.77263 6.57132 6.58588 6.70593L5.3388 7.59981H3.19988V11.9998H2.09994V7.59981H1V17.4998H2.09994V13.0997H3.19988V17.4996L6.29364 17.4998L8.88891 19.4749C9.08079 19.6205 9.31522 19.6994 9.55607 19.6997H17.5001C17.7916 19.6995 18.0714 19.5835 18.2776 19.3773C18.4839 19.171 18.5997 18.8915 18.6001 18.5998V17.4999H19.7V18.5998H21.9001C22.1918 18.5994 22.4713 18.4836 22.6776 18.2774C22.8838 18.0711 22.9998 17.7914 23 17.4999V10.8999C22.9998 10.6082 22.8838 10.3286 22.6776 10.1224C22.4713 9.91613 22.1916 9.80005 21.8999 9.79968ZM10.9 5.39973H12V6.49967H10.9V5.39973ZM21.8999 17.4999H20.8V16.3998H18.5999C18.3082 16.4002 18.0287 16.5162 17.8224 16.7224C17.6162 16.9287 17.5002 17.2082 17.5 17.4999V18.5998H9.55591L6.96064 16.6248C6.76875 16.4793 6.53451 16.4003 6.29347 16.3998H4.29984V8.6999H5.33864C5.56828 8.70027 5.79239 8.62809 5.97875 8.49365L7.22695 7.59996H15.7198L17.5 8.48997V10.9C17.5002 11.1915 17.6162 11.4712 17.8224 11.6775C18.0287 11.8837 18.3082 11.9995 18.5999 11.9999H20.8V10.9H21.8999V17.4999Z" fill="currentColor"/>
+</svg>
+
+</span>
+
+        <span class="text-sm text-base-content flex-1 min-w-[6rem] truncate">DPF Regeneration</span>
+        <span class="text-sm font-medium text-success shrink-0">Completed</span>
+        <span class="badge badge-success badge-outline badge-xs shrink-0" data-billable-badge>Billable</span>
+      </div>
+      
+      
+      
+      
+      <div class="flex flex-wrap items-center gap-x-3 gap-y-1 py-2.5 border-b border-base-200" data-event-row="1">
+        <span class="text-xs text-base-content/50 w-12 shrink-0">09:55</span>
+        
+<span class="icon icon-alert-octagon w-4 h-4 shrink-0 text-error inline-block shrink-0 [&_svg]:w-full [&_svg]:h-full [&_svg]:block" role="img" aria-hidden="true">
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M12 8V12M12 16H12.01M7.86 2H16.14L22 7.86V16.14L16.14 22H7.86L2 16.14V7.86L7.86 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
+
+</span>
+
+        <span class="text-sm text-base-content flex-1 min-w-[6rem] truncate">Erase fault codes</span>
+        <span class="text-sm font-medium text-error shrink-0">2 DTC erased</span>
+        <span class="badge badge-success badge-outline badge-xs shrink-0" data-billable-badge>Billable</span>
+      </div>
+      
+      
+      
+      
+      <div class="flex flex-wrap items-center gap-x-3 gap-y-1 py-2.5 border-b border-base-200" data-event-row="2">
+        <span class="text-xs text-base-content/50 w-12 shrink-0">09:52</span>
+        
+<span class="icon icon-alert-triangle w-4 h-4 shrink-0 text-warning inline-block shrink-0 [&_svg]:w-full [&_svg]:h-full [&_svg]:block" role="img" aria-hidden="true">
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M11.9998 8.99996V13M11.9998 17H12.0098M10.2898 3.85996L1.81978 18C1.64514 18.3024 1.55274 18.6453 1.55177 18.9945C1.55079 19.3437 1.64127 19.6871 1.8142 19.9905C1.98714 20.2939 2.2365 20.5467 2.53748 20.7238C2.83847 20.9009 3.18058 20.9961 3.52978 21H20.4698C20.819 20.9961 21.1611 20.9009 21.4621 20.7238C21.7631 20.5467 22.0124 20.2939 22.1854 19.9905C22.3583 19.6871 22.4488 19.3437 22.4478 18.9945C22.4468 18.6453 22.3544 18.3024 22.1798 18L13.7098 3.85996C13.5315 3.56607 13.2805 3.32308 12.981 3.15444C12.6814 2.98581 12.3435 2.89722 11.9998 2.89722C11.656 2.89722 11.3181 2.98581 11.0186 3.15444C10.7191 3.32308 10.468 3.56607 10.2898 3.85996Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
+
+</span>
+
+        <span class="text-sm text-base-content flex-1 min-w-[6rem] truncate">Fraud detection</span>
+        <span class="text-sm font-medium text-warning shrink-0">Deviation</span>
+        <span class="badge badge-success badge-outline badge-xs shrink-0" data-billable-badge>Billable</span>
+      </div>
+      
+      
+      
+      
+      <div class="flex flex-wrap items-center gap-x-3 gap-y-1 py-2.5 border-b border-base-200" data-event-row="3">
+        <span class="text-xs text-base-content/50 w-12 shrink-0">09:47</span>
+        
+<span class="icon icon-chart-line w-4 h-4 shrink-0 text-base-content/70 inline-block shrink-0 [&_svg]:w-full [&_svg]:h-full [&_svg]:block" role="img" aria-hidden="true">
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+  <path d="M3 3v16a2 2 0 0 0 2 2h16"/>
+  <path d="m19 9-5 5-4-4-4 4"/>
+</svg>
+
+</span>
+
+        <span class="text-sm text-base-content flex-1 min-w-[6rem] truncate">Live Data Snapshot</span>
+        <span class="text-sm font-medium text-base-content/70 shrink-0">14 parameters</span>
+        <span class="badge badge-success badge-outline badge-xs shrink-0" data-billable-badge>Billable</span>
+      </div>
+      
+      
+      
+      
+      <div class="flex flex-wrap items-center gap-x-3 gap-y-1 py-2.5 border-b border-base-200" data-event-row="4">
+        <span class="text-xs text-base-content/50 w-12 shrink-0">09:45</span>
+        
+<span class="icon icon-search w-4 h-4 shrink-0 text-success inline-block shrink-0 [&_svg]:w-full [&_svg]:h-full [&_svg]:block" role="img" aria-hidden="true">
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true">
+  <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+</svg>
+
+</span>
+
+        <span class="text-sm text-base-content flex-1 min-w-[6rem] truncate">System Scan</span>
+        <span class="text-sm font-medium text-success shrink-0">No DTC&#39;s</span>
+        <span class="badge badge-success badge-outline badge-xs shrink-0" data-billable-badge>Billable</span>
+      </div>
+      
+    </div>
+  </div>
+
+  <div data-notes-section class="hidden">
+    <p class="text-xs font-semibold uppercase tracking-wide text-base-content/50 mb-2">Notes</p>
+    <p class="text-sm text-base-content whitespace-pre-line" data-field="notes"></p>
+  </div>
+
+  <div class="flex items-center justify-between pt-2 border-t border-base-200 text-xs text-base-content/50">
+    <span>Reviewed by <span data-field="mechanic">David Ramm</span></span>
+    <span data-report-print-date></span>
+  </div>
+</div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+
+  
+  <div class="flex items-center justify-end gap-2 pt-3 border-t border-base-200 shrink-0">
+    <button type="button" class="btn btn-outline btn-sm gap-1.5" id="report-export-btn">
+      
+<span class="icon icon-file-text w-4 h-4 inline-block shrink-0 [&_svg]:w-full [&_svg]:h-full [&_svg]:block" role="img" aria-hidden="true">
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+  <polyline points="14 2 14 8 20 8"/>
+  <line x1="16" y1="13" x2="8" y2="13"/>
+  <line x1="16" y1="17" x2="8" y2="17"/>
+  <polyline points="10 9 9 9 8 9"/>
+</svg>
+
+</span>
+
+      PDF
+    </button>
+    <button type="button" class="btn btn-square btn-outline btn-sm" id="report-print-btn" aria-label="Print report">
+      
+<span class="icon icon-print w-4 h-4 inline-block shrink-0 [&_svg]:w-full [&_svg]:h-full [&_svg]:block" role="img" aria-hidden="true">
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+  <polyline points="6 9 6 2 18 2 18 9"/>
+  <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>
+  <rect x="6" y="14" width="12" height="8"/>
+</svg>
+
+</span>
+
+    </button>
+    <button type="button" class="btn btn-primary btn-sm" id="report-save-btn">Save Report</button>
+  </div>
+</div>
+
+
+<div class="hidden" data-icon-pool aria-hidden="true">
+  
+</div>
+
+
+<script type="application/json" id="report-defaults-data">{"fileName":"Volvo-XC60-2014-Session-4-Report","mechanic":"David Ramm","customerName":"Anders Björk","customerPhone":"070-123 45 67","notes":"","eventCount":5}</script>
+<script src="/diagnostics-pub/assets/scripts/live-session.js"></script>
+<script src="/diagnostics-pub/assets/scripts/live-report.js"></script>
+<script src="/diagnostics-pub/assets/scripts/report-shared.js"></script>
+<script src="/diagnostics-pub/assets/scripts/report-composer.js"></script>
+
+        </div>
+      </div>
+    </main>
+  </div>
+  <div class="drawer-side automechanika-drawer-side z-40">
+    <label for="automechanika-drawer" aria-label="close sidebar" class="drawer-overlay"></label>
+    
+
+
+<aside class="automechanika-sidebar w-64 min-h-full bg-base-100 border-r border-primary/15 flex flex-col">
+  <div class="p-4 border-b border-base-300 shrink-0">
+    <a class="btn btn-ghost px-2 justify-start w-full" href="/diagnostics-pub/diagnostics-platform/" data-automechanika-home-link>
+      
+<span class="brand-logo h-5 w-auto inline-block [&_svg]:w-full [&_svg]:h-full [&_svg]:block" data-brand-logo="autocom" role="img" aria-label="Autocom">
+  <svg width="105" height="22" viewBox="0 0 105 22" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_15275_29243-u1187)">
+<path d="M53.1614 19.4296L49.7086 12.9987H48.8715C48.453 12.9987 48.1391 12.6925 48.1391 12.1821C48.1391 11.7738 48.453 11.3655 48.8715 11.3655H50.2317C50.5456 11.3655 50.7549 11.5696 50.8595 11.7738L53.0568 15.9589V5.3429C53.0568 4.93459 53.2661 4.62836 53.6846 4.62836C53.9985 4.52628 54.417 4.73044 54.5217 5.03667L57.9745 11.4675H58.8116C59.2301 11.4675 59.544 11.7738 59.544 12.2842C59.544 12.7945 59.2301 13.1008 58.8116 13.1008H57.4514C57.1375 13.1008 56.9282 12.8966 56.8236 12.6925L54.6263 8.5073V19.2254C54.6263 19.6337 54.417 19.94 53.9985 20.042C53.6846 19.94 53.2661 19.7358 53.1614 19.4296Z" fill="currentColor"/>
+<path d="M104.745 5.13869C104.954 5.75115 104.954 6.874 104.954 8.30309V20.3482C104.85 20.5524 104.745 20.7565 104.431 20.7565H100.351C100.037 20.7565 99.8274 20.4503 99.8274 20.1441V9.32386C99.8274 7.7927 99.7228 6.874 99.7228 6.56777C99.6181 6.26154 99.4089 6.05738 98.9903 6.05738C98.5718 6.05738 98.3625 6.26154 98.2579 6.56777C98.1533 6.874 98.0486 7.89478 98.0486 9.32386V20.2461C98.0486 20.5524 97.8394 20.7565 97.5255 20.7565H93.4448C93.1309 20.7565 92.9217 20.4503 92.9217 20.2461V9.63009C92.9217 7.89478 92.9217 6.874 92.817 6.56777C92.7124 6.26154 92.5031 6.05738 92.0846 6.05738C91.8753 6.05738 91.6661 6.15946 91.4568 6.36362C91.2476 6.56777 91.2475 6.77193 91.1429 7.07816C91.1429 7.38439 91.1429 7.89478 91.1429 8.71139V20.2461C91.1429 20.5524 90.9337 20.8586 90.6198 20.8586H86.5391C86.2252 20.8586 86.0159 20.6544 86.0159 20.3482V3.70961C86.0159 3.40337 86.3298 3.19922 86.6437 3.19922H90.7244C91.0383 3.19922 91.2476 3.50545 91.2476 3.81168V4.93453C91.6661 4.21999 92.1892 3.81168 92.7124 3.40337C93.2356 2.99506 93.8634 2.89299 94.5958 2.89299C96.0606 2.89299 97.107 3.60753 97.944 4.93453C98.3625 4.21999 98.8857 3.81168 99.4089 3.40337C100.037 2.99506 100.664 2.89299 101.292 2.89299C102.234 2.89299 102.966 3.09714 103.49 3.60753C104.222 4.01584 104.536 4.52622 104.745 5.13869ZM25.957 3.19922C26.2709 3.19922 26.4802 3.40337 26.4802 3.70961V20.2461C26.4802 20.5524 26.1663 20.7565 25.8524 20.7565H21.6671C21.3532 20.7565 21.144 20.4503 21.144 20.1441V19.2254C20.8301 19.7357 20.3069 20.2461 19.7837 20.5524C19.2606 20.8586 18.6328 20.9607 17.9004 20.9607C17.0633 20.9607 16.4355 20.8586 15.9124 20.5524C15.3892 20.2461 14.9707 19.8378 14.7614 19.4295C14.5521 18.9191 14.3429 18.5108 14.3429 17.8984C14.2382 17.388 14.2382 16.3672 14.2382 14.836V3.70961C14.2382 3.40337 14.5521 3.19922 14.866 3.19922H19.0513C19.3652 3.19922 19.5745 3.50545 19.5745 3.70961V15.1423C19.5745 16.4693 19.5745 17.388 19.6791 17.5921C19.7837 17.7963 19.993 18.0004 20.3069 18.0004C20.7254 18.0004 20.9347 17.8984 21.0393 17.5921C21.144 17.2859 21.144 16.4693 21.144 15.0402V3.81168C21.144 3.50545 21.4579 3.19922 21.7718 3.19922H25.957ZM10.5761 3.81168C11.5178 4.42415 12.041 5.24077 12.2502 6.15946C12.4595 7.07816 12.5641 9.01763 12.5641 11.9779V20.3482C12.4595 20.5524 12.2502 20.7565 12.041 20.7565H7.85567C7.54178 20.7565 7.33251 20.5524 7.22788 20.2461V19.2254C6.91398 19.8378 6.49545 20.2461 5.97229 20.6544C5.44913 20.9607 4.82134 21.1648 4.08891 21.1648C3.14722 21.1648 2.31016 20.8586 1.57774 20.3482C0.845313 19.8378 0.426785 18.715 0.426785 16.8776V15.4485C0.426785 14.1215 0.636049 13.2028 1.05458 12.6924C1.47311 12.2841 2.51943 11.7737 4.08891 11.0592C5.86766 10.3446 6.80935 9.93632 6.91398 9.63009C7.12325 9.42594 7.12325 9.01763 7.12325 8.20101C7.12325 7.28231 7.01861 6.66985 6.91398 6.36362C6.80935 6.15946 6.49545 5.95531 6.28619 6.05738C5.86766 6.05738 5.6584 6.15946 5.55376 6.36362C5.44913 6.56777 5.44913 7.18023 5.44913 8.20101V9.52801C5.44913 9.73217 5.23987 9.93632 5.0306 10.0384H0.949946C0.740681 10.0384 0.426785 9.83425 0.426785 9.52801V8.81347C0.426785 7.48647 0.636049 6.36362 0.845313 5.64907C1.26384 4.93453 1.787 4.32207 2.83333 3.70961C3.77502 3.19922 4.92597 2.89299 6.49545 2.89299C8.2742 2.89299 9.63442 3.19922 10.5761 3.81168ZM7.12325 12.4883C6.28619 13.1007 5.76303 13.6111 5.6584 14.0194C5.55376 14.4277 5.44913 15.0402 5.44913 15.8568C5.44913 16.7755 5.55376 17.388 5.6584 17.5921C5.76303 17.8984 5.97229 18.0004 6.39082 18.0004C6.70472 18.0004 6.91398 17.8984 7.01861 17.6942C7.12325 17.49 7.12325 16.9797 7.12325 16.061V12.4883ZM35.2693 18.0004C35.4786 18.1025 35.6878 18.3067 35.6878 18.5108V20.2461C35.6878 20.5524 35.4786 20.7565 35.1647 20.7565H33.4906C32.6535 20.7565 31.7118 20.7565 30.8748 20.5524C29.8284 20.3482 28.9914 19.5316 28.7821 18.6129C28.7821 18.3067 28.6775 17.1838 28.6775 15.3464V6.46569H28.0497C27.7358 6.46569 27.5265 6.15946 27.5265 5.85323V4.21999C27.5265 3.91376 27.7358 3.70961 28.0497 3.60753H28.6775V1.36183C28.6775 1.0556 28.8867 0.85144 29.2006 0.85144H33.4906C33.6998 0.85144 33.9091 1.0556 34.0137 1.36183V3.70961H34.9554C35.2693 3.70961 35.4786 3.91376 35.4786 4.21999V5.95531C35.4786 6.26154 35.2693 6.46569 34.9554 6.46569H34.0137V16.4693C34.1184 17.49 34.7462 17.8984 35.2693 18.0004ZM83.1909 4.83246C83.6094 5.44492 83.9233 5.95531 84.1326 6.56777C84.3418 7.18023 84.4465 8.09893 84.4465 9.32386V13.6111C84.4465 15.1423 84.3418 16.3672 84.2372 17.0817C84.1326 17.7963 83.714 18.5108 83.1909 19.1233C82.6677 19.7357 81.9353 20.2461 81.2029 20.5524C80.3658 20.8586 79.4241 20.9607 78.3778 20.9607C77.3315 20.9607 76.3898 20.8586 75.3435 20.5524C73.8786 20.1441 72.7277 18.9191 72.4138 17.49C72.2045 16.7755 72.0999 15.6527 72.0999 14.1215V9.83425C72.0999 8.20101 72.3091 6.874 72.623 5.95531C72.9369 5.03661 73.6693 4.21999 74.5064 3.70961C75.4481 3.19922 76.599 2.89299 78.0639 2.89299C79.2148 2.89299 80.2612 3.09714 81.0982 3.40337C82.0399 3.81168 82.6677 4.21999 83.1909 4.83246ZM79.0056 8.09893C79.0056 7.18023 79.0056 6.66985 78.901 6.36362C78.7963 6.15946 78.5871 6.05738 78.2732 6.05738C77.9593 6.05738 77.75 6.15946 77.6454 6.36362C77.5407 6.56777 77.4361 7.18023 77.4361 8.09893V16.061C77.4361 16.8776 77.5407 17.388 77.5407 17.6942C77.6454 18.0004 77.8546 18.1025 78.1685 18.1025C78.4824 18.1025 78.6917 18.0004 78.7963 17.7963C78.901 17.5921 78.901 17.0817 78.901 16.2651V8.09893H79.0056ZM70.2165 13.6111C70.5304 13.7132 70.7396 13.9173 70.7396 14.2236C70.7396 15.0402 70.7396 15.9589 70.635 16.7755C70.5304 17.49 70.2165 18.2046 69.6933 18.9191C69.1702 19.6337 68.5424 20.2461 67.7053 20.5524C66.8683 20.9607 65.9266 21.1648 64.671 21.1648C63.4154 21.2669 62.1598 20.9607 61.1135 20.3482C60.2764 19.8378 59.544 19.1233 59.2301 18.2046C58.9162 17.2859 58.7069 16.061 58.7069 14.4277C58.7069 14.1215 58.9162 13.9173 59.2301 13.9173C60.0672 13.7132 60.6949 12.9986 60.6949 12.182C60.6949 11.2633 60.0672 10.5488 59.2301 10.4467C58.9162 10.4467 58.7069 10.2426 58.7069 9.93632V9.22178C58.7069 7.69062 58.8116 6.56777 59.1255 5.85323C59.4394 5.13869 60.0672 4.42415 61.0088 3.81168C62.1598 3.19922 63.4154 2.89299 64.671 2.89299C66.0312 2.89299 67.2868 3.19922 68.2285 3.81168C69.1702 4.32207 69.7979 5.13869 70.2165 6.05738C70.5304 6.874 70.635 7.89478 70.7396 9.32386C70.7396 9.63009 70.5304 9.83424 70.2165 9.93632H66.2405C65.9266 9.93632 65.7173 9.63009 65.7173 9.42594V7.7927C65.7173 7.07816 65.6127 6.56777 65.508 6.36362C65.4034 6.05738 65.1941 5.95531 64.8802 5.95531C64.5663 5.95531 64.3571 6.15946 64.2524 6.36362C64.1478 6.56777 64.1478 7.07816 64.1478 7.89478V16.163C64.1478 16.7755 64.2524 17.2859 64.3571 17.5921C64.4617 17.8984 64.7756 18.1025 65.0895 18.1025C65.4034 18.1025 65.7173 17.8984 65.8219 17.5921C65.9266 17.2859 66.0312 16.6734 66.0312 15.7547V14.1215C66.0312 13.8153 66.2405 13.6111 66.5543 13.509L70.2165 13.6111ZM47.5113 4.83246C48.0344 5.44492 48.3483 5.95531 48.5576 6.56777C48.7669 7.18023 48.8715 8.09893 48.8715 9.32386V9.73217C48.8715 10.0384 48.6622 10.2426 48.3483 10.2426C47.4067 10.3446 46.6742 11.0592 46.6742 11.9779C46.6742 12.8966 47.4067 13.7132 48.3483 13.7132C48.6622 13.7132 48.8715 13.9173 48.8715 14.2236C48.8715 15.4485 48.7669 16.3672 48.6622 16.9797C48.5576 17.6942 48.1391 18.4087 47.6159 19.0212C47.0928 19.6337 46.3603 20.1441 45.6279 20.4503C44.7908 20.7565 43.8492 20.8586 42.8028 20.8586C41.7565 20.8586 40.8148 20.7565 39.7685 20.4503C38.3036 20.042 37.1527 18.8171 36.8388 17.388C36.6295 16.6734 36.5249 15.5506 36.5249 14.0194V9.83425C36.5249 8.20101 36.7342 6.874 37.0481 5.95531C37.362 5.03661 38.0944 4.21999 38.9314 3.70961C39.8731 3.19922 41.0241 2.89299 42.4889 2.89299C43.6399 2.89299 44.6862 3.09714 45.5233 3.40337C46.465 3.81168 47.0928 4.21999 47.5113 4.83246ZM43.4306 8.09893C43.4306 7.18023 43.4306 6.66985 43.326 6.36362C43.2214 6.15946 43.0121 6.05738 42.6982 6.05738C42.3843 6.05738 42.175 6.15946 42.0704 6.36362C41.9658 6.56777 41.8611 7.18023 41.8611 8.09893V16.061C41.8611 16.8776 41.9658 17.388 41.9658 17.6942C42.0704 18.0004 42.2797 18.1025 42.5936 18.1025C42.9075 18.1025 43.1167 18.0004 43.2214 17.7963C43.326 17.5921 43.326 17.0817 43.326 16.2651V8.09893H43.4306Z" fill="currentColor"/>
+</g>
+<defs>
+<clipPath id="clip0_15275_29243-u1187">
+<rect width="105" height="22" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+
+</span>
+<span class="brand-logo h-5 w-auto inline-block [&_svg]:w-full [&_svg]:h-full [&_svg]:block" data-brand-logo="wow" role="img" aria-label="WOW">
+  <svg width="60" height="16" viewBox="0 0 60 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M43.5609 13.7315C43.5726 13.6869 43.5813 13.6527 43.5886 13.6171C43.7375 12.907 43.8821 12.1955 44.0339 11.4869C44.1755 10.8244 44.3156 10.1619 44.4689 9.50239C44.6441 8.74927 44.8382 8.0006 45.0149 7.24748C45.0747 6.99347 45.1068 6.73501 45.1565 6.47802C45.1638 6.44237 45.1959 6.41118 45.2178 6.3785C45.2411 6.41266 45.2674 6.44534 45.2893 6.481C45.2952 6.48991 45.2922 6.50476 45.2952 6.51665C45.447 7.25046 45.5915 7.98575 45.7521 8.71807C45.8324 9.08647 45.9725 9.44297 46.0294 9.81285C46.2236 11.0725 46.3944 12.3366 46.5696 13.5992C46.5842 13.7032 46.6163 13.7374 46.7243 13.7374C48.0469 13.7344 49.368 13.7374 50.6906 13.7418C50.8074 13.7418 50.8468 13.7047 50.876 13.5978C51.8906 9.96882 52.9096 6.34136 53.9271 2.71391C53.9387 2.6738 53.9475 2.63369 53.9577 2.58764C53.9022 2.5817 53.8949 2.57576 53.8482 2.58764L50.8979 2.56982C50.5987 2.57576 50.5184 2.55794 50.4892 2.67529C50.3534 3.21599 50.2133 3.7552 50.0761 4.29442C49.6264 6.06953 49.1199 7.83275 48.8746 9.6539C48.8702 9.6851 48.8381 9.71332 48.8192 9.74303C48.7973 9.71184 48.7608 9.68361 48.7535 9.64945C48.6498 9.0731 48.5812 8.48932 48.4425 7.92188C48.0148 6.16608 47.5593 4.41623 47.117 2.66192C47.0951 2.57725 47.0513 2.56982 46.9798 2.56982C45.8718 2.56982 44.7638 2.56982 43.6543 2.56536C43.5638 2.56536 43.5302 2.59656 43.5069 2.67826C43.3521 3.22193 43.1886 3.76263 43.0354 4.3063C42.5288 6.09032 41.9317 7.85206 41.6179 9.68658C41.6135 9.71629 41.5755 9.74006 41.5536 9.7668C41.5332 9.73412 41.5011 9.70292 41.4953 9.66727C41.3755 8.95575 41.2938 8.23679 41.1361 7.53269C40.7741 5.90464 40.3756 4.28551 39.9946 2.66192C39.9741 2.57576 39.9347 2.55942 39.8544 2.55942C38.799 2.55942 37.7421 2.55942 36.6866 2.55794C36.653 2.55794 36.618 2.56239 36.5786 2.56536C36.5873 2.60844 36.5932 2.63964 36.6019 2.67083C37.5961 6.31017 38.5917 9.94802 39.5829 13.5874C39.6106 13.6899 39.65 13.724 39.761 13.724C40.9829 13.7211 42.2033 13.724 43.4251 13.724C43.4689 13.724 43.501 13.724 43.501 13.724M57.6613 10.7531C57.6613 10.7531 57.597 10.7531 57.5576 10.7531C56.435 10.7531 55.3124 10.7531 54.1884 10.7472C54.0876 10.7472 54.0511 10.7769 54.0278 10.872C53.8365 11.6132 53.6409 12.3544 53.4468 13.0942C53.3928 13.2977 53.3417 13.5012 53.2862 13.7136C53.33 13.7166 53.3621 13.7211 53.3928 13.7211C54.5081 13.7225 55.6219 13.7225 56.7372 13.727C56.8233 13.727 56.854 13.6988 56.8759 13.62C57.1036 12.8134 57.3343 12.0083 57.5649 11.2032C57.6058 11.0591 57.6467 10.9136 57.6934 10.7531" fill="currentColor"/>
+<path d="M27.614 0.00148548C27.8563 0.0252526 28.0986 0.0460488 28.3409 0.0742722C30.1759 0.288176 31.8591 0.88681 33.2985 2.06922C34.8853 3.37344 35.7992 5.05794 36.0561 7.08706C36.2809 8.85622 35.9991 10.5377 35.078 12.0782C33.9189 14.0167 32.2051 15.2169 30.0051 15.7353C29.2387 15.9165 28.4592 16.0146 27.6694 15.9982C27.0125 15.9834 26.3527 16.0012 25.6987 15.9418C23.9381 15.7799 22.3104 15.2421 20.9207 14.1162C19.0726 12.6189 18.0886 10.6789 18.0229 8.30661C17.9631 6.1542 18.6098 4.23946 20.1119 2.65449C21.2141 1.4899 22.5805 0.766489 24.1221 0.356507C24.833 0.167855 25.5571 0.0594178 26.2928 0.0193108C26.341 0.0163399 26.3877 0.00742722 26.4344 0C26.8271 0 27.2198 0 27.614 0M27.1439 12.4406C27.4227 12.4124 27.7045 12.4035 27.9804 12.3544C29.573 12.0767 30.6781 11.2003 31.1978 9.66282C31.5569 8.59924 31.5482 7.51635 31.1818 6.45129C30.7686 5.24808 29.9526 4.41029 28.7555 3.9602C27.9307 3.64974 27.0753 3.57844 26.2096 3.73589C24.7381 4.00476 23.6695 4.80838 23.1338 6.21064C22.6024 7.6025 22.7075 8.98842 23.3819 10.3149C23.8024 11.1423 24.4724 11.7246 25.3337 12.0811C25.9118 12.3203 26.5176 12.4183 27.1424 12.4376" fill="currentColor"/>
+<path d="M0 2.53268C0.0364955 2.52971 0.0715311 2.52525 0.108027 2.52525C1.1591 2.52525 2.20871 2.52823 3.25977 2.52674C3.34298 2.52674 3.38532 2.54159 3.40722 2.63518C3.79553 4.29739 4.20136 5.95663 4.57361 7.62181C4.71959 8.27541 4.79258 8.94386 4.90207 9.60488C4.90791 9.63756 4.94294 9.66579 4.96338 9.69698C4.98382 9.66876 5.0174 9.64202 5.02323 9.61083C5.29476 8.00506 5.79402 6.45871 6.2451 4.90048C6.46262 4.15033 6.68451 3.40018 6.90056 2.64855C6.92684 2.55942 6.96187 2.5312 7.0553 2.5312C8.15454 2.53565 9.25233 2.53565 10.3516 2.53714C10.4187 2.53714 10.4698 2.53714 10.4917 2.62329C10.9151 4.29739 11.3545 5.96852 11.7632 7.64707C11.918 8.28581 12.0026 8.94089 12.1209 9.58854C12.1267 9.61974 12.1588 9.64648 12.1778 9.6747C12.1997 9.64648 12.2347 9.62122 12.2391 9.59151C12.4508 7.99763 12.8683 6.44831 13.2683 4.89602C13.4595 4.15479 13.6508 3.41355 13.8362 2.66934C13.861 2.56982 13.9018 2.54011 14.004 2.54011C15.058 2.54457 16.1135 2.54457 17.1675 2.54605C17.2069 2.54605 17.2463 2.54605 17.3003 2.54605C17.2156 2.85205 17.1353 3.1432 17.0536 3.43286C16.1149 6.78105 15.1734 10.1292 14.2391 13.4789C14.2026 13.6082 14.1544 13.6512 14.0157 13.6512C12.7121 13.6438 11.4085 13.6438 10.1063 13.6453C10.0085 13.6453 9.96326 13.6319 9.9472 13.5161C9.77348 12.2549 9.60268 10.9938 9.40561 9.73709C9.34138 9.32562 9.18956 8.92901 9.09905 8.52051C8.95161 7.85057 8.82314 7.17618 8.68592 6.50476C8.68154 6.48099 8.683 6.45574 8.67278 6.43494C8.65526 6.39781 8.63045 6.36216 8.60855 6.32651C8.58519 6.36067 8.55016 6.39335 8.5414 6.43197C8.50052 6.63102 8.46695 6.83156 8.43191 7.03209C8.28739 7.85503 8.05966 8.65568 7.85236 9.46377C7.59689 10.4516 7.43777 11.4647 7.1896 12.454C7.10202 12.803 7.04216 13.1566 6.98523 13.5116C6.96917 13.6141 6.94144 13.6453 6.84801 13.6453C5.613 13.6408 4.378 13.6394 3.14299 13.6423C3.04664 13.6423 3.02328 13.5992 3.00285 13.5235C2.09776 10.2065 1.19413 6.8984 0.289044 3.58883C0.207294 3.28877 0.125544 2.98871 0.0437945 2.68865C0.0335758 2.65152 0.0145982 2.61587 0 2.58022C0 2.56388 0 2.59061 0 2.59061" fill="currentColor"/>
+<path d="M59.9985 2.62775C59.8861 3.01397 59.7708 3.40018 59.6613 3.7864C59.127 5.66994 58.5913 7.55348 58.0614 9.43703C58.0322 9.54398 57.9913 9.57963 57.876 9.57815C56.7855 9.5722 55.695 9.5722 54.6045 9.57072C54.5607 9.57072 54.5169 9.57072 54.4585 9.57072C54.5417 9.26323 54.622 8.96911 54.7023 8.675C55.2483 6.68302 55.7943 4.69103 56.3373 2.69757C56.3636 2.6025 56.4015 2.57576 56.4994 2.57576C57.6176 2.58022 58.7358 2.58022 59.8555 2.5817C59.9036 2.5817 59.9518 2.58022 60 2.57873C60 2.59507 60 2.58913 60 2.58913" fill="currentColor"/>
+</svg>
+
+</span>
+<span class="brand-logo h-5 w-auto inline-block [&_svg]:w-full [&_svg]:h-full [&_svg]:block" data-brand-logo="wabco" role="img" aria-label="Wabco">
+  <svg width="78" height="32" viewBox="0 0 78 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_16177_856-u1189)">
+<mask id="mask0_16177_856-u1189" style="mask-type:luminance" maskUnits="userSpaceOnUse" x="39" y="0" width="39" height="23">
+<path d="M67.6293 0.190077C67.0468 0.408106 66.6315 0.821803 66.6315 0.821803L57.8988 9.28022L51.7155 3.28721C51.7155 3.28721 50.4005 1.92313 48.324 1.92313C46.2475 1.92313 44.9382 3.2928 44.9382 3.2928L39.5452 8.51991L46.2879 15.0552L48.3355 13.0706L57.9276 22.3676L77.3829 3.52201C77.3829 3.52201 77.9943 2.98532 78.0001 2.10762V2.07966C78.0001 1.85045 77.954 1.59888 77.8501 1.33054C77.3368 0.00559062 75.8775 0 75.8775 0H68.6964C68.6964 0 68.6733 0 68.6329 0C68.483 0 68.0908 0.0167715 67.6293 0.190077Z" fill="white"/>
+</mask>
+<g mask="url(#mask0_16177_856-u1189)">
+<path d="M78 0H39.5566V22.3732H78V0Z" fill="url(#paint0_linear_16177_856-u1189)"/>
+</g>
+<mask id="mask1_16177_856-u1189" style="mask-type:luminance" maskUnits="userSpaceOnUse" x="0" y="0" width="78" height="32">
+<path d="M78 0H0.536377V32H78V0Z" fill="white"/>
+</mask>
+<g mask="url(#mask1_16177_856-u1189)">
+<path d="M64.1281 30.7812H65.6508L64.5549 28.9587C65.1605 28.7128 65.5066 28.2376 65.5066 27.6114C65.5066 26.6778 64.8721 26.0629 63.6205 26.0629H61.2153V30.7812H62.5361V29.1488H63.2052L64.1281 30.7812ZM64.1858 27.6114C64.1858 27.9469 63.9493 28.1873 63.459 28.1873H62.5361V27.0412H63.459C63.9493 27.0412 64.1858 27.2816 64.1858 27.617M58.8504 27.399V28.9084C58.8504 29.5905 58.5043 29.8309 58.0602 29.8309C57.6161 29.8309 57.2642 29.5905 57.2642 28.914V27.399H55.9145V28.9755C55.9145 30.2166 56.624 30.8986 58.0602 30.8986C59.4964 30.8986 60.2001 30.2166 60.2001 28.9811V27.399H58.8504ZM57.2584 26.0685H55.9087V26.9573H57.2584V26.0685ZM58.8504 26.9573H60.2001V26.0685H58.8504V26.9573ZM50.3427 29.1935L49.662 26.0685H48.3181L49.5582 30.7868H50.9829L51.8193 27.7121L52.6498 30.7868H54.0745L55.3146 26.0685H53.9707L53.2901 29.1935L52.4422 26.0685H51.1906L50.3427 29.1935ZM73.5817 27.7568H71.9436V26.0685H70.5939V30.7868H71.9436V28.8246H73.5817V30.7868H74.9372V26.0685H73.5817V27.7568ZM67.2601 27.0971V30.7868H68.6098V27.0971H69.8614V26.0685H66.0027V27.0971H67.2543H67.2601Z" fill="currentColor"/>
+<path d="M46.282 27.4996H39.3027V24.6038H42.204V25.7442H43.3749V24.6038H46.2762V27.4996H46.282ZM43.3807 30.8651V32C45.0476 31.6981 46.282 30.2837 46.282 28.7016V28.6401H39.3027V28.7016C39.3027 30.2837 40.5371 31.6925 42.204 32V30.8651H43.3749H43.3807Z" fill="#ED1D24"/>
+<path d="M27.9341 29.0482C27.9571 29.8364 27.9918 30.7756 26.3537 30.7868H24.7213C23.0602 30.7924 23.1928 29.6128 23.1409 28.9811V27.248C23.1409 26.5716 23.4351 26.0069 24.7271 26.0181H26.2383C27.6572 26.0125 27.9398 26.5716 27.9398 27.248V27.5834H26.0653C26.0653 27.1642 25.973 26.9014 25.6961 26.8679H25.3904C25.1136 26.8679 25.0213 27.1977 25.0213 27.617V28.696C25.0501 29.1208 25.0328 29.8029 25.4366 29.8029H25.6557C25.9787 29.8085 26.0364 29.473 26.0537 29.0482H27.9341Z" fill="#005BAA"/>
+<path d="M7.93659 27.863L7.48092 30.8092H4.7123L3.67407 26.1746H5.46214L6.03893 29.5122L6.75993 26.1746H9.10748L9.82271 29.5122L10.4053 26.1746H12.1933L11.1609 30.8092H8.38649L7.93659 27.863Z" fill="#005BAA"/>
+<path fill-rule="evenodd" clip-rule="evenodd" d="M15.3196 30.1159L15.5041 30.7868H17.4652L15.9886 26.1411H13.3181L11.8992 30.7868H13.7968L13.9641 30.1159H15.3253H15.3196ZM14.2121 29.1935L14.662 27.5387L15.0888 29.1935H14.2121Z" fill="#005BAA"/>
+<path fill-rule="evenodd" clip-rule="evenodd" d="M21.3413 30.7868H17.8113V26.1355H21.797C22.2757 26.1187 22.6506 26.3871 22.6449 27.002V27.4157C22.6449 27.4157 22.6737 28.1816 21.9527 28.2767C22.7198 28.4667 22.7025 29.2997 22.7025 29.2997V29.6743C22.691 30.7253 21.8143 30.8036 21.3471 30.7868M19.7897 27.9301V26.9853H20.3377C20.5107 26.9853 20.6549 27.125 20.6549 27.2927V27.6226C20.6549 27.7903 20.5107 27.9301 20.3377 27.9301H19.7897ZM19.7897 29.7973V28.8189H20.3492C20.5223 28.8189 20.6665 28.9587 20.6665 29.1264V29.4898C20.6665 29.6575 20.5338 29.8141 20.3608 29.7973H19.7897Z" fill="#005BAA"/>
+<path fill-rule="evenodd" clip-rule="evenodd" d="M29.9702 30.7868C28.4128 30.7868 28.4186 29.6519 28.3897 28.9811V27.248C28.3897 26.5716 28.9608 26.0181 29.6587 26.0181H32.2658C32.9637 26.0181 33.5348 26.5716 33.5348 27.248V28.9811C33.529 29.6407 33.5175 30.7812 31.9486 30.7868H29.9702ZM30.7719 29.7861C30.3681 29.7861 30.322 29.1208 30.322 28.6904V27.589C30.322 27.1697 30.4143 26.8343 30.6912 26.8399H31.2391C31.5102 26.8399 31.6429 27.1697 31.6313 27.589V28.6904C31.6313 29.1041 31.6083 29.7805 31.1987 29.7861H30.7719Z" fill="#005BAA"/>
+</g>
+<mask id="mask2_16177_856-u1189" style="mask-type:luminance" maskUnits="userSpaceOnUse" x="0" y="0" width="46" height="21">
+<path d="M19.5073 9.30258L10.7573 0.821803C10.7573 0.821803 10.3709 0.391335 9.93829 0.195667C9.51146 0 9.02118 0 9.02118 0H3.43781C3.28207 0 1.48824 0.0391336 0.761479 1.75542C0.000109076 3.54997 1.40172 4.80224 1.40172 4.80224L16.1388 19.0748C16.1388 19.0748 17.477 20.4724 19.5189 20.4724C21.5607 20.4724 22.8989 19.086 22.8989 19.086L29.0821 13.0874L35.3 19.1139C35.3 19.1139 36.5631 20.4724 38.6915 20.4724C40.8199 20.4724 42.1177 19.1195 42.1177 19.1195L45.4689 15.8658L29.1052 0L19.5073 9.30258Z" fill="white"/>
+</mask>
+<g mask="url(#mask2_16177_856-u1189)">
+<path d="M45.4688 0H0V20.4724H45.4688V0Z" fill="url(#paint1_linear_16177_856-u1189)"/>
+</g>
+</g>
+<defs>
+<linearGradient id="paint0_linear_16177_856-u1189" x1="78.161" y1="11.1592" x2="39.7176" y2="11.1592" gradientUnits="userSpaceOnUse">
+<stop stop-color="#ED1C24"/>
+<stop offset="0.35" stop-color="#ED1C24"/>
+<stop offset="0.43" stop-color="#D8181F"/>
+<stop offset="0.82" stop-color="#790608"/>
+<stop offset="1" stop-color="#540000"/>
+</linearGradient>
+<linearGradient id="paint1_linear_16177_856-u1189" x1="1.53197" y1="12.5417" x2="46.4643" y2="12.5417" gradientUnits="userSpaceOnUse">
+<stop stop-color="#005BAB"/>
+<stop offset="0.35" stop-color="#005BAB"/>
+<stop offset="0.49" stop-color="#004C97"/>
+<stop offset="0.78" stop-color="#002865"/>
+<stop offset="1" stop-color="#000A3C"/>
+</linearGradient>
+<clipPath id="clip0_16177_856-u1189">
+<rect width="78" height="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+
+</span>
+
+    </a>
+  </div>
+
+  <ul class="menu p-4 w-full text-base-content flex-1 gap-4">
+    <li>
+      <a id="automechanika-nav-home" href="/diagnostics-pub/diagnostics-platform/" data-automechanika-home-link class="gap-3 ">
+        <span data-nav-home-cars class="contents">
+<span class="icon icon-obd-male w-6 h-6 inline-block shrink-0 [&_svg]:w-full [&_svg]:h-full [&_svg]:block" role="img" aria-hidden="true">
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M5.00002 12H19M6.00002 9L6.00004 10M9 9L9.00002 10M12 9L12 10M15 9L15 10M18 9L18 10M6.00002 14L6.00004 15M9 14L9.00002 15M12 14L12 15M15 14L15 15M18 14L18 15M5.48808 17H18.512C19.3952 17 20.1738 16.4207 20.4276 15.5747L22.2276 9.5747C22.6126 8.29147 21.6517 7 20.312 7H3.68808C2.34835 7 1.38746 8.29147 1.77243 9.5747L3.57243 15.5747C3.82622 16.4207 4.60486 17 5.48808 17Z" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
+
+</span>
+</span>
+        <span data-nav-home-trucks class="contents hidden">
+<span class="icon icon-obd-9pin w-6 h-6 inline-block shrink-0 [&_svg]:w-full [&_svg]:h-full [&_svg]:block" role="img" aria-hidden="true">
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12Z" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M13 12C13 12.5523 12.5523 13 12 13C11.4477 13 11 12.5523 11 12C11 11.4477 11.4477 11 12 11C12.5523 11 13 11.4477 13 12Z" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M7 12C7 12.5523 6.55228 13 6 13C5.44772 13 5 12.5523 5 12C5 11.4477 5.44772 11 6 11C6.55228 11 7 11.4477 7 12Z" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M19 12C19 12.5523 18.5523 13 18 13C17.4477 13 17 12.5523 17 12C17 11.4477 17.4477 11 18 11C18.5523 11 19 11.4477 19 12Z" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M13 6C13 6.55228 12.5523 7 12 7C11.4477 7 11 6.55228 11 6C11 5.44772 11.4477 5 12 5C12.5523 5 13 5.44772 13 6Z" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M13 18C13 18.5523 12.5523 19 12 19C11.4477 19 11 18.5523 11 18C11 17.4477 11.4477 17 12 17C12.5523 17 13 17.4477 13 18Z" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M9 16C9 16.5523 8.55228 17 8 17C7.44772 17 7 16.5523 7 16C7 15.4477 7.44772 15 8 15C8.55228 15 9 15.4477 9 16Z" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M17 16C17 16.5523 16.5523 17 16 17C15.4477 17 15 16.5523 15 16C15 15.4477 15.4477 15 16 15C16.5523 15 17 15.4477 17 16Z" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M9 8C9 8.55228 8.55228 9 8 9C7.44772 9 7 8.55228 7 8C7 7.44772 7.44772 7 8 7C8.55228 7 9 7.44772 9 8Z" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M17 8C17 8.55228 16.5523 9 16 9C15.4477 9 15 8.55228 15 8C15 7.44772 15.4477 7 16 7C16.5523 7 17 7.44772 17 8Z" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
+
+</span>
+</span>
+        <span>Diagnostics</span>
+      </a>
+    </li>
+    <li>
+      <a href="/diagnostics-pub/diagnostics-platform/my-garage/" class="gap-3 menu-active font-semibold">
+        
+<span class="icon icon-garage w-6 h-6 inline-block shrink-0 [&_svg]:w-full [&_svg]:h-full [&_svg]:block" role="img" aria-hidden="true">
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M12.002 3.77888C12.1982 3.77888 12.3863 3.80896 12.5665 3.86913C12.7467 3.92946 12.9193 4.01988 13.0845 4.14038L18.777 8.42888C19.0028 8.59454 19.1798 8.80546 19.308 9.06163C19.436 9.31763 19.5 9.58871 19.5 9.87488V19.4711C19.5 19.6836 19.4281 19.8617 19.2843 20.0054C19.1404 20.1492 18.9622 20.2211 18.7498 20.2211C18.5371 20.2211 18.359 20.1492 18.2155 20.0054C18.0718 19.8617 18 19.6836 18 19.4711V9.87488C18 9.82371 17.9888 9.77729 17.9663 9.73563C17.9439 9.69396 17.9135 9.65704 17.875 9.62488L12.1828 5.34613C12.1314 5.30129 12.0705 5.27888 12 5.27888C11.9295 5.27888 11.8686 5.30129 11.8173 5.34613L6.125 9.62488C6.0865 9.65704 6.05608 9.69396 6.03375 9.73563C6.01125 9.77729 6 9.82371 6 9.87488V19.4711C6 19.6836 5.92808 19.8617 5.78425 20.0054C5.64042 20.1492 5.46225 20.2211 5.24975 20.2211C5.03708 20.2211 4.859 20.1492 4.7155 20.0054C4.57183 19.8617 4.5 19.6836 4.5 19.4711V9.87488C4.5 9.58871 4.564 9.31763 4.692 9.06163C4.82017 8.80546 4.99717 8.59454 5.223 8.42888L10.9155 4.14038C11.0815 4.01988 11.255 3.92946 11.436 3.86913C11.6172 3.80896 11.8058 3.77888 12.002 3.77888ZM8.75 18.7116H15.25V16.2114H8.75V18.7116ZM8.75 14.7116H15.25V12.2114H8.75V14.7116ZM8.15375 20.2114C7.89775 20.2114 7.68308 20.1248 7.50975 19.9516C7.33658 19.7785 7.25 19.5638 7.25 19.3076V11.6154C7.25 11.3592 7.33658 11.1445 7.50975 10.9714C7.68308 10.7982 7.89775 10.7116 8.15375 10.7116H15.8462C16.1022 10.7116 16.3169 10.7982 16.4902 10.9714C16.6634 11.1445 16.75 11.3592 16.75 11.6154V19.3076C16.75 19.5638 16.6634 19.7785 16.4902 19.9516C16.3169 20.1248 16.1022 20.2114 15.8462 20.2114H8.15375Z" fill="currentColor"/>
+</svg>
+
+</span>
+
+        <span>Garage</span>
+        <span class="badge badge-outline badge-warning badge-xs normal-case font-normal">Concept</span>
+      </a>
+    </li>
+    <li>
+      <a href="/diagnostics-pub/diagnostics-platform/tech-data/" class="gap-3 ">
+        
+<span class="icon icon-book-open w-6 h-6 inline-block shrink-0 [&_svg]:w-full [&_svg]:h-full [&_svg]:block" role="img" aria-hidden="true">
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true">
+  <path stroke-linecap="round" stroke-linejoin="round" d="M12 6.042A8.967 8.967 0 0 0 6 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 0 1 6 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 0 1 6-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0 0 18 18a8.967 8.967 0 0 0-6 2.292m0-14.25v14.25" />
+</svg>
+
+</span>
+
+        <span>Technical Data</span>
+      </a>
+    </li>
+    <li data-nav-wabco-only class="hidden">
+      <a href="/diagnostics-pub/diagnostics-platform/oem-integration/" class="gap-3 ">
+        
+<span class="icon icon-grid w-6 h-6 inline-block shrink-0 [&_svg]:w-full [&_svg]:h-full [&_svg]:block" role="img" aria-hidden="true">
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M10 3H3V10H10V3Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M21 3H14V10H21V3Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M21 14H14V21H21V14Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M10 14H3V21H10V14Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
+
+</span>
+
+        <span>OEM Integrations</span>
+      </a>
+    </li>
+    <li>
+      <a href="/diagnostics-pub/diagnostics-platform/settings/" class="gap-3 ">
+        
+<span class="icon icon-sliders w-6 h-6 inline-block shrink-0 [&_svg]:w-full [&_svg]:h-full [&_svg]:block" role="img" aria-hidden="true">
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M4 21V14M4 10V3M12 21V12M12 8V3M20 21V16M20 12V3M1 14H7M9 8H15M17 16H23" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
+
+</span>
+
+        <span>Settings</span>
+      </a>
+    </li>
+  </ul>
+
+  <div class="p-4 border-t border-base-300 shrink-0 flex flex-col gap-2">
+    <button type="button" class="notifications-bell-trigger btn btn-ghost justify-start gap-3 w-full" aria-label="Notifications" aria-haspopup="dialog">
+      <div class="indicator">
+        <span class="notifications-badge indicator-item badge badge-warning badge-sm hidden">0</span>
+        
+<span class="icon icon-bell w-5 h-5 text-base-content inline-block shrink-0 [&_svg]:w-full [&_svg]:h-full [&_svg]:block" role="img" aria-hidden="true">
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+  <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+  <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+</svg>
+
+</span>
+
+      </div>
+      <span>Notifications</span>
+    </button>
+
+    
+    <details class="dropdown dropdown-top w-full">
+      <summary class="btn btn-ghost justify-start gap-3 w-full list-none" aria-label="Profile" aria-haspopup="menu">
+        <div class="avatar">
+          <div class="w-6 rounded-full ring-2 ring-base-200">
+            <img src="/diagnostics-pub/assets/images/tinkerer.png" alt="" width="24" height="24" />
+          </div>
+        </div>
+        <span>Profile</span>
+      </summary>
+      <ul class="dropdown-content menu bg-base-100 rounded-box z-50 w-56 border border-base-200 p-2 shadow-lg mb-2" role="menu">
+        <li role="none"><a href="/diagnostics-pub/diagnostics-platform/internal-demo-controls/" role="menuitem">Internal demo controls</a></li>
+      </ul>
+    </details>
+
+    
+    <label class="btn btn-ghost justify-start gap-3 w-full" id="automechanika-theme-toggle" aria-label="Toggle light/dark mode">
+      <span class="swap swap-rotate">
+        <input type="checkbox" id="automechanika-theme-toggle-input" />
+        
+<span class="icon icon-sun swap-off w-5 h-5 text-base-content inline-block shrink-0 [&_svg]:w-full [&_svg]:h-full [&_svg]:block" role="img" aria-hidden="true">
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true">
+  <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v2.25m6.364.386-1.591 1.591M21 12h-2.25m-.386 6.364-1.591-1.591M12 18.75V21m-4.773-4.227-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0Z" />
+</svg>
+
+</span>
+
+        
+<span class="icon icon-moon swap-on w-5 h-5 text-base-content inline-block shrink-0 [&_svg]:w-full [&_svg]:h-full [&_svg]:block" role="img" aria-hidden="true">
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true">
+  <path stroke-linecap="round" stroke-linejoin="round" d="M21.752 15.002A9.72 9.72 0 0 1 18 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 0 0 3 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 0 0 9.002-5.998Z" />
+</svg>
+
+</span>
+
+      </span>
+      <span id="automechanika-theme-toggle-label">Light mode</span>
+    </label>
+  </div>
+</aside>
+<script src="/diagnostics-pub/assets/scripts/automechanika-theme-toggle.js"></script>
+<script src="/diagnostics-pub/assets/scripts/diagnostics-platform-nav.js"></script>
+<script>
+(function () {
+  // Profile is a native <details> dropdown, which only closes on a second click of its own
+  // summary — clicking anywhere else (main content, another sidebar item) left it open. Same
+  // outside-click-close as launchpad-2-sidebar.njk's Profile/Theme dropdowns.
+  document.addEventListener('click', function (e) {
+    document.querySelectorAll('.automechanika-sidebar details[open]').forEach(function (d) {
+      if (!d.contains(e.target)) d.removeAttribute('open');
+    });
+  });
+})();
+</script>
+
+  </div>
+
+  
+  <div id="onboarding-tutorial-step1-backdrop" class="fixed inset-0 z-[28] bg-black/50 opacity-0 pointer-events-none transition-opacity duration-200 ease-out" aria-hidden="true"></div>
+
+  
+  <div id="onboarding-right-drawer" class="onboarding-right-drawer fixed top-0 right-0 bottom-0 w-80 max-w-full bg-base-200 border-l border-base-300 shadow-lg z-30 translate-x-full transition-transform duration-200 ease-out flex flex-col" role="dialog" aria-label="Onboarding tutorial" aria-hidden="true">
+    <div class="flex items-center justify-between p-4 border-b border-base-300 shrink-0">
+      <div class="flex items-center gap-2 leading-tight">
+        <span class="text-primary -mb-0.5 shrink-0">
+<span class="icon icon-help w-5 h-5 inline-block shrink-0 [&_svg]:w-full [&_svg]:h-full [&_svg]:block" role="img" aria-hidden="true">
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M4.93 4.93L9.17 9.17M14.83 14.83L19.07 19.07M19.07 4.93L14.83 9.17L18.36 5.64M4.93 19.07L9.17 14.83M22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12ZM16 12C16 14.2091 14.2091 16 12 16C9.79086 16 8 14.2091 8 12C8 9.79086 9.79086 8 12 8C14.2091 8 16 9.79086 16 12Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
+
+</span>
+</span>
+        <h2 class="text-lg font-semibold text-base-content leading-tight">Tutorial</h2>
+      </div>
+      <button type="button" id="onboarding-drawer-close" class="btn btn-ghost btn-sm btn-square" aria-label="Close">
+        
+<span class="icon icon-close w-5 h-5 inline-block shrink-0 [&_svg]:w-full [&_svg]:h-full [&_svg]:block" role="img" aria-hidden="true">
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true">
+  <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+</svg>
+
+</span>
+
+      </button>
+    </div>
+    <div id="onboarding-drawer-content" class="flex-1 min-h-0 flex flex-col">
+      <div class="flex-1 overflow-auto p-4 text-base-content/90">
+        <div id="onboarding-drawer-step"></div>
+      </div>
+      <div class="flex flex-col gap-2 shrink-0 p-4 pt-0">
+        <button type="button" id="onboarding-drawer-next" class="btn btn-primary btn-block">Next</button>
+        <div id="onboarding-drawer-footer-actions" class="flex gap-2">
+          <button type="button" id="onboarding-drawer-restart" class="btn btn-neutral flex-1">Restart</button>
+          <button type="button" id="onboarding-drawer-skip" class="btn btn-ghost flex-1">Skip Tutorial</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  
+  <div id="onboarding-welcome-hub-backdrop" class="fixed inset-0 z-[31] bg-black/50 opacity-0 pointer-events-none transition-opacity duration-200 ease-out" aria-hidden="true"></div>
+
+  
+  <div id="onboarding-welcome-hub-drawer" class="onboarding-welcome-hub-drawer fixed top-0 right-0 bottom-0 w-80 max-w-full bg-base-200 border-l border-base-300 shadow-lg z-[32] translate-x-full transition-transform duration-200 ease-out flex flex-col" role="dialog" aria-labelledby="onboarding-welcome-hub-title" aria-hidden="true">
+    <div class="flex items-center justify-between p-4 border-b border-base-300 shrink-0">
+      <div class="flex items-center gap-2 leading-tight">
+        <span class="text-primary -mb-0.5 shrink-0">
+<span class="icon icon-help w-5 h-5 inline-block shrink-0 [&_svg]:w-full [&_svg]:h-full [&_svg]:block" role="img" aria-hidden="true">
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M4.93 4.93L9.17 9.17M14.83 14.83L19.07 19.07M19.07 4.93L14.83 9.17L18.36 5.64M4.93 19.07L9.17 14.83M22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12ZM16 12C16 14.2091 14.2091 16 12 16C9.79086 16 8 14.2091 8 12C8 9.79086 9.79086 8 12 8C14.2091 8 16 9.79086 16 12Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
+
+</span>
+</span>
+        <h2 id="onboarding-welcome-hub-title" class="text-lg font-semibold text-base-content leading-tight">How it works</h2>
+      </div>
+      <button type="button" id="onboarding-welcome-hub-close" class="btn btn-ghost btn-sm btn-square" aria-label="Close">
+        
+<span class="icon icon-close w-5 h-5 inline-block shrink-0 [&_svg]:w-full [&_svg]:h-full [&_svg]:block" role="img" aria-hidden="true">
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true">
+  <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+</svg>
+
+</span>
+
+      </button>
+    </div>
+    <div class="flex-1 min-h-0 overflow-auto p-4 space-y-8 text-base-content min-w-0">
+      <div class="space-y-3 min-w-0">
+        <div class="flex items-center gap-2">
+          <h3 class="text-base font-semibold text-base-content">1. Video tutorial</h3>
+          <span class="text-success shrink-0 hidden pt-2" id="onboarding-hub-check-video" aria-label="Watched">
+<span class="icon icon-success w-4 h-4 inline-block shrink-0 [&_svg]:w-full [&_svg]:h-full [&_svg]:block" role="img" aria-hidden="true">
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+  <circle cx="12" cy="12" r="10"/>
+  <path d="m9 12 2 2 4-4"/>
+</svg>
+
+</span>
+</span>
+        </div>
+        <p class="text-sm text-base-content/80">Watch how to connect and pair your VCI device.</p>
+        <div class="w-full aspect-video bg-base-300 rounded-box overflow-hidden border border-base-300">
+          <video id="onboarding-video-player" class="w-full h-full object-contain bg-black" controls preload="metadata" poster="/diagnostics-pub/assets/images/vci-pairing-tutorial-poster.png">
+            <source src="/diagnostics-pub/assets/videos/vci-pairing-tutorial.mp4" type="video/mp4" />
+            <p class="p-4 text-base-content/80 text-sm">Your browser does not support the video tag.</p>
+          </video>
+        </div>
+      </div>
+      <div class="divider my-0"></div>
+      <div class="space-y-3">
+        <div class="flex items-center gap-2">
+          <h3 class="text-base font-semibold text-base-content">2. See main options</h3>
+          <span class="text-success shrink-0 hidden pt-2" id="onboarding-hub-check-options" aria-label="Seen">
+<span class="icon icon-success w-4 h-4 inline-block shrink-0 [&_svg]:w-full [&_svg]:h-full [&_svg]:block" role="img" aria-hidden="true">
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+  <circle cx="12" cy="12" r="10"/>
+  <path d="m9 12 2 2 4-4"/>
+</svg>
+
+</span>
+</span>
+        </div>
+        <p class="text-sm text-base-content/80">Explore the main actions and where to find them.</p>
+        <button type="button" id="onboarding-cta-see-options" class="btn btn-primary w-full">2. See the options</button>
+      </div>
+      <div class="divider my-0"></div>
+      <div class="space-y-3">
+        <div class="flex items-center gap-2">
+          <h3 class="text-base font-semibold text-base-content">3. Demo tutorial</h3>
+          <span class="text-success shrink-0 hidden pt-2" id="onboarding-hub-check-demo" aria-label="Seen">
+<span class="icon icon-success w-4 h-4 inline-block shrink-0 [&_svg]:w-full [&_svg]:h-full [&_svg]:block" role="img" aria-hidden="true">
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+  <circle cx="12" cy="12" r="10"/>
+  <path d="m9 12 2 2 4-4"/>
+</svg>
+
+</span>
+</span>
+        </div>
+        <p class="text-sm text-base-content/80">Follow a guided walkthrough including a full system scan.</p>
+        <button type="button" id="onboarding-cta-show-me-how" class="btn btn-neutral w-full">3. Demo tutorial</button>
+      </div>
+    </div>
+  </div>
+
+  
+  <button type="button" id="onboarding-help-fab" class="onboarding-help-fab fixed bottom-6 right-6 btn btn-circle btn-primary btn-lg shadow-lg z-20 hidden" aria-label="Help">
+    
+<span class="icon icon-help w-6 h-6 inline-block shrink-0 [&_svg]:w-full [&_svg]:h-full [&_svg]:block" role="img" aria-hidden="true">
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M4.93 4.93L9.17 9.17M14.83 14.83L19.07 19.07M19.07 4.93L14.83 9.17L18.36 5.64M4.93 19.07L9.17 14.83M22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12ZM16 12C16 14.2091 14.2091 16 12 16C9.79086 16 8 14.2091 8 12C8 9.79086 9.79086 8 12 8C14.2091 8 16 9.79086 16 12Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
+
+</span>
+
+  </button>
+
+  
+  <div id="notification-panel-backdrop" class="fixed inset-0 z-[33] bg-black/50 opacity-0 pointer-events-none transition-opacity duration-200 ease-out" aria-hidden="true"></div>
+  <div id="notification-panel" class="fixed top-0 right-0 bottom-0 w-80 max-w-full bg-base-200 border-l border-base-300 shadow-lg z-[34] translate-x-full transition-transform duration-200 ease-out flex flex-col" role="dialog" aria-label="Notifications" aria-hidden="true">
+    <div class="flex items-center justify-between p-4 border-b border-base-300 shrink-0">
+      <div class="flex items-center gap-2 leading-tight">
+        <span class="text-primary -mb-0.5 shrink-0">
+<span class="icon icon-bell w-5 h-5 inline-block shrink-0 [&_svg]:w-full [&_svg]:h-full [&_svg]:block" role="img" aria-hidden="true">
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+  <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+  <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+</svg>
+
+</span>
+</span>
+        <h2 class="text-lg font-semibold text-base-content leading-tight">Notifications</h2>
+      </div>
+      <div class="flex items-center gap-1 shrink-0">
+        <button type="button" id="notification-panel-clear-all" class="btn btn-ghost btn-xs text-base-content/60 hover:text-base-content hidden">Clear all</button>
+        <button type="button" id="notification-panel-close" class="btn btn-ghost btn-sm btn-square" aria-label="Close">
+          
+<span class="icon icon-close w-5 h-5 inline-block shrink-0 [&_svg]:w-full [&_svg]:h-full [&_svg]:block" role="img" aria-hidden="true">
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true">
+  <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+</svg>
+
+</span>
+
+        </button>
+      </div>
+    </div>
+    <div id="notification-panel-list" class="flex-1 overflow-auto p-4 flex flex-col gap-3"></div>
+  </div>
+</div>
+
+
+<div id="notification-toast-container" class="toast toast-bottom toast-end z-[60]"></div>
+
+<script src="/diagnostics-pub/assets/scripts/vendor/confetti.browser.min.js"></script>
+<script src="/diagnostics-pub/assets/scripts/onboarding-drawer.js"></script>
+<script src="/diagnostics-pub/assets/scripts/onboarding-waypoint-tour.js"></script>
+<script src="/diagnostics-pub/assets/scripts/notifications.js"></script>
+<script src="/diagnostics-pub/assets/scripts/clearable-input.js"></script>
+
+    
+<div id="prototype-gate-root" class="prototype-gate-root fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm" aria-modal="true" role="dialog" aria-labelledby="prototype-gate-title" aria-describedby="prototype-gate-desc">
+  <div class="card bg-base-100 border border-base-300 shadow-xl w-full max-w-xs sm:max-w-sm">
+    <div class="card-body p-6 sm:p-8">
+      <h2 id="prototype-gate-title" class="card-title text-xl mb-3">Prototype access</h2>
+      <p id="prototype-gate-desc" class="text-sm text-base-content/80 leading-relaxed mb-8">This build is password-protected. Enter the password to continue.</p>
+      <div class="flex flex-col gap-8">
+        <label class="floating-label w-full">
+          <input type="password" id="prototype-gate-input" class="input input-bordered w-full" placeholder="Password" autocomplete="current-password" />
+          <span>Password</span>
+        </label>
+        <div class="flex flex-col gap-3">
+          <p id="prototype-gate-error" class="text-sm text-error leading-snug hidden min-h-0" role="alert">Incorrect password. Try again.</p>
+          <button type="button" id="prototype-gate-submit" class="btn btn-primary btn-block">Continue</button>
+        </div>
+      </div>
+      <noscript><p class="text-sm text-warning mt-6">JavaScript is required to unlock this prototype.</p></noscript>
+    </div>
+  </div>
+</div>
+
+    <script src="/diagnostics-pub/assets/scripts/prototype-gate.js"></script>
+
+</body>
+</html>
